@@ -22,7 +22,7 @@ help:
 	@echo "  Examples:"
 	@echo "    make ingest ARGS=-i test.mp3"
 	@echo "    make generate ARGS=-t AI_topic"
-	@echo "    make polish ARGS='-i script.md -f make_it_simpler'"
+	@echo "    make polish ARGS='-i ./outputs/scripts/创业_20260501_170401.md -f xxx'"
 	@echo "    make clear ARGS=--confirm"
 	@echo "    make nuke"
 

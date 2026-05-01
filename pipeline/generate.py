@@ -69,16 +69,50 @@ class GeneratePipeline:
         return script
 
     def polish(self, draft: str, feedback: str) -> str:
-        """根据反馈润色文案（使用 polisher 模型）。"""
+        """润色文案：AI提取关键词 → 检索知识库 → 有资料则结合润色，无则直接润色。"""
         logger.info("Polishing: feedback='%s' draft_len=%d", feedback, len(draft))
-        prompt = prompts.POLISH_SCRIPT.format(draft=draft, feedback=feedback)
         t0 = time.time()
+
+        # Step 1: 从文案提取关键词
+        logger.info("  [1/3] Extracting keywords from draft ...")
+        kw_prompt = prompts.EXTRACT_KEYWORDS_PROMPT.format(text=draft[:2000])
+        kw_response = self._mgr.generate("summarizer", kw_prompt)
+        keywords = [kw.strip() for kw in kw_response.replace("，", ",").split(",") if kw.strip()]
+        logger.info("  -> keywords: %s", keywords)
+
+        # Step 2: 用关键词检索知识库
+        context = ""
+        if keywords:
+            logger.info("  [2/3] Searching knowledge base with keywords ...")
+            all_docs = []
+            seen_ids = set()
+            for kw in keywords[:3]:  # 最多用3个关键词检索
+                docs = self._retriever.retrieve(kw, top_k=3)
+                for doc in docs:
+                    if doc["id"] not in seen_ids:
+                        seen_ids.add(doc["id"])
+                        all_docs.append(doc)
+            logger.info("  -> %d relevant docs found", len(all_docs))
+
+            if all_docs:
+                context = "\n\n---\n\n".join(
+                    f"【来源 {d['metadata'].get('source_name', '?')}】\n{d['text']}"
+                    for d in all_docs[:5]
+                )
+
+        # Step 3: 润色（有资料 vs 无资料）
+        logger.info("  [3/3] Polishing%s ...", " with KB context" if context else " directly")
+        if context:
+            user_prompt = prompts.POLISH_SCRIPT_WITH_CONTEXT.format(
+                draft=draft, feedback=feedback, context=context
+            )
+        else:
+            user_prompt = prompts.POLISH_SCRIPT.format(draft=draft, feedback=feedback)
+
         polished = self._mgr.generate(
-            "polisher",
-            prompt,
-            system_prompt=prompts.SYSTEM_POLISHER,
+            "polisher", user_prompt, system_prompt=prompts.SYSTEM_POLISHER,
         )
-        logger.info("Polished: %d chars -> %d chars (%.1fs)", len(draft), len(polished), time.time() - t0)
+        logger.info("Polished: %d -> %d chars (%.1fs)", len(draft), len(polished), time.time() - t0)
         return polished
 
     def polish_to_file(self, draft_path: str, feedback: str) -> str:

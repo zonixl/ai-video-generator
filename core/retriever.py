@@ -64,7 +64,7 @@ class Retriever:
                 relevance = np.dot(candidate_vecs[i], query_vec)
                 if selected:
                     sim_to_selected = max(
-                        np.dot(candidate_vecs[i], np.array(self._embedder.embed(
+                        np.dot(candidate_vecs[i], np.array(self._embedder.embed_query(
                             candidates[s]["text"]
                         )))
                         for s in selected
