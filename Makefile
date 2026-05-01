@@ -26,6 +26,7 @@ help:
 	@cmd /C echo     make polish ARGS='-i ./outputs/scripts/demo.md -f xxx'
 	@cmd /C echo     make produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1 --no-tts'
 	@cmd /C echo     make produce-tts JOB=demo1
+	@cmd /C echo     make produce-step JOB=demo1 STEP=animation ARGS=--force
 	@cmd /C echo     make produce-step JOB=demo1 STEP=clips ARGS=--force
 	@cmd /C echo     make produce-step JOB=demo1 STEP=compose ARGS='--tts --force'
 	@cmd /C echo     make clear ARGS=--confirm

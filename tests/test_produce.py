@@ -26,6 +26,42 @@ def test_rule_based_scene_splitter_creates_plan():
     assert plan.scenes[0].duration >= 2
 
 
+def test_ai_scene_splitter_parses_llm_json():
+    from core.scene_splitter import AISceneSplitter
+
+    splitter = AISceneSplitter(FakeModelManager(), instance_name="scene_planner")
+    plan = splitter.split("# 标题\n第一句。第二句。", style="科技感", width=1080, height=1920, fps=30)
+
+    assert plan.title == "AI 标题"
+    assert len(plan.scenes) == 2
+    assert plan.scenes[0].subtitle == "第一句。"
+    assert plan.scenes[0].image_prompt == "未来城市里的创作者，竖屏电影感"
+    assert plan.scenes[0].animation_notes == ""
+
+
+def test_ai_animation_planner_updates_scenes_one_by_one():
+    from core.animation_planner import AIAnimationPlanner
+    from core.schema import Scene, VideoPlan
+
+    model_manager = FakeAnimationModelManager()
+    plan = VideoPlan(
+        title="测试",
+        script="第一句。第二句。",
+        scenes=[
+            Scene(1, "第一句。", "第一句。", "画面一", "prompt one", 5.0),
+            Scene(2, "第二句。", "第二句。", "画面二", "prompt two", 6.0),
+        ],
+    )
+
+    result = AIAnimationPlanner(model_manager).plan(plan)
+
+    assert model_manager.calls == 2
+    assert result.scenes[0].animation == "pan_right"
+    assert result.scenes[0].animation_notes
+    assert result.scenes[0].animation_params["offset_px"] == 40
+    assert result.scenes[1].animation == "zoom_out"
+
+
 def test_subtitle_srt_timeline():
     from core.schema import Scene, VideoPlan
     from utils.subtitle_utils import build_srt
@@ -143,6 +179,30 @@ def test_produce_pipeline_can_add_tts_to_existing_job(tmp_path):
     assert round(total_duration, 1) == 4.0
 
 
+def test_produce_pipeline_animation_step_updates_plan(tmp_path):
+    from pipeline.produce import ProducePipeline
+    from utils.file_utils import read_json
+
+    script_path = tmp_path / "script.md"
+    script_path.write_text("# 测试视频\n这是第一段文案。这里说明第二个观点。", encoding="utf-8")
+
+    config = FakeProduceConfig(tmp_path)
+    pipeline = ProducePipeline(
+        config,
+        image_provider=FakeImageProvider(),
+        animation_planner=FakeAnimationPlanner(),
+        renderer=FakeRenderer(),
+    )
+
+    pipeline.run(str(script_path), job_id="video_animation", step="plan", force=True)
+    result = pipeline.run(job_id="video_animation", step="animation", force=True)
+
+    plan_data = read_json(result.plan_path)
+    assert plan_data["scenes"][0]["animation"] == "pan_left"
+    assert plan_data["scenes"][0]["animation_notes"] == "测试动画编排"
+    assert plan_data["scenes"][0]["animation_params"]["offset_px"] == 40
+
+
 class FakeProduceConfig:
     def __init__(self, root: Path):
         self.output_audio_dir = root / "audio"
@@ -160,6 +220,71 @@ class FakeProduceConfig:
         self.video_subtitle_max_chars = 12
         self.tts_voice = "zh-CN-XiaoxiaoNeural"
         self.tts_speed = 1.0
+
+
+class FakeModelManager:
+    def generate(self, instance_name: str, prompt: str, system_prompt: str | None = None) -> str:
+        assert instance_name == "scene_planner"
+        assert "请只输出 JSON" in prompt
+        return """
+        {
+          "title": "AI 标题",
+          "scenes": [
+            {
+              "index": 1,
+              "duration": 5,
+              "subtitle": "第一句。",
+              "narration": "第一句。",
+              "visual": "未来城市里的创作者",
+              "image_prompt": "未来城市里的创作者，竖屏电影感",
+              "animation": "zoom_in"
+            },
+            {
+              "index": 2,
+              "duration": 6,
+              "subtitle": "第二句。",
+              "narration": "第二句。",
+              "visual": "数据流与屏幕光影",
+              "image_prompt": "数据流与屏幕光影，蓝紫色科技感",
+              "animation": "pan_right"
+            }
+          ]
+        }
+        """
+
+
+class FakeAnimationModelManager:
+    def __init__(self):
+        self.calls = 0
+
+    def generate(self, instance_name: str, prompt: str, system_prompt: str | None = None) -> str:
+        self.calls += 1
+        assert instance_name == "animation_planner"
+        assert "这不是分镜脚本任务，只负责动画" in prompt
+        if self.calls == 1:
+            return """
+            {
+              "animation": "pan_right",
+              "animation_notes": "从问题向解决方案移动，保持节奏推进。",
+              "animation_params": {"direction": "right", "offset_px": 40, "easing": "linear"}
+            }
+            """
+        return """
+        {
+          "animation": "zoom_out",
+          "animation_notes": "拉远展示整体信息，适合总结。",
+          "animation_params": {"start_scale": 1.08, "end_scale": 1.0, "easing": "linear"}
+        }
+        """
+
+
+class FakeAnimationPlanner:
+    def plan(self, plan):
+        for scene in plan.scenes:
+            scene.animation = "pan_left"
+            scene.animation_notes = "测试动画编排"
+            scene.animation_params = {"direction": "left", "offset_px": 40}
+        return plan
 
 
 class FakeImageProvider:

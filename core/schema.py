@@ -18,6 +18,8 @@ class Scene:
     image_prompt: str
     duration: float
     animation: str = "zoom_in"
+    animation_notes: str = ""
+    animation_params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -101,6 +103,8 @@ def scene_from_dict(data: dict[str, Any]) -> Scene:
         image_prompt=str(data.get("image_prompt", "")),
         duration=float(data["duration"]),
         animation=str(data.get("animation", "zoom_in")),
+        animation_notes=str(data.get("animation_notes", "")),
+        animation_params=dict(data.get("animation_params", {})),
     )
 
 

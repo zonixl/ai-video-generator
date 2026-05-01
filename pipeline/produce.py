@@ -6,6 +6,7 @@ import logging
 import time
 from pathlib import Path
 
+from core.animation_planner import RuleBasedAnimationPlanner
 from core.image_provider import ImageProvider, PlaceholderImageProvider
 from core.scene_splitter import RuleBasedSceneSplitter
 from core.schema import AudioAsset, ClipAsset, ImageAsset, ProduceResult, VideoPlan, to_dict, video_plan_from_dict
@@ -17,7 +18,7 @@ from utils.subtitle_utils import write_srt
 
 logger = logging.getLogger(__name__)
 
-PRODUCE_STEPS = ("all", "plan", "tts", "images", "clips", "subtitles", "compose")
+PRODUCE_STEPS = ("all", "plan", "animation", "tts", "images", "clips", "subtitles", "compose")
 
 
 class ProducePipeline:
@@ -29,6 +30,7 @@ class ProducePipeline:
         *,
         splitter: RuleBasedSceneSplitter | None = None,
         image_provider: ImageProvider | None = None,
+        animation_planner=None,
         tts_provider: TTSProvider | None = None,
         renderer: VideoRenderer | None = None,
     ):
@@ -39,6 +41,7 @@ class ProducePipeline:
             chars_per_second=getattr(config, "video_chars_per_second", 4.5),
         )
         self._image_provider = image_provider or PlaceholderImageProvider()
+        self._animation_planner = animation_planner or RuleBasedAnimationPlanner()
         self._tts_provider = tts_provider or EdgeTTSProvider()
         self._renderer = renderer or VideoRenderer()
 
@@ -86,6 +89,7 @@ class ProducePipeline:
             step=step,
             force=force,
         )
+        plan = self._prepare_animation(plan, plan_path, step=step, force=force)
 
         audio_asset = self._prepare_audio(
             plan=plan,
@@ -105,6 +109,8 @@ class ProducePipeline:
 
         if step == "plan":
             logger.info("Step 'plan' complete; downstream assets were not touched.")
+        elif step == "animation":
+            logger.info("Step 'animation' complete; downstream assets were not touched.")
         elif step == "tts":
             logger.info("Step 'tts' complete; run --step clips --force then --step compose --tts if durations changed.")
         elif step == "images":
@@ -266,6 +272,28 @@ class ProducePipeline:
             raise FileNotFoundError(f"TTS audio not found: {audio_path}. Run --step tts --tts first.")
         logger.info("[2/7] TTS audio not present; continuing without audio")
         return None
+
+    def _prepare_animation(self, plan: VideoPlan, plan_path: Path, *, step: str, force: bool) -> VideoPlan:
+        if step not in {"all", "animation"}:
+            logger.info("[2/8] Loading existing animation plan from video plan")
+            return plan
+
+        has_animation_notes = all(scene.animation_notes for scene in plan.scenes)
+        if has_animation_notes and not force:
+            logger.info("[2/8] Reusing existing animation plan")
+            return plan
+
+        start = time.perf_counter()
+        logger.info("[2/8] Planning scene animations ...")
+        plan = self._animation_planner.plan(plan)
+        for scene in plan.scenes:
+            logger.info(
+                "      scene %03d: animation=%s notes=%s",
+                scene.index, scene.animation, self._preview(scene.animation_notes),
+            )
+        self._save_plan(plan, plan_path)
+        logger.info("      -> animation plan saved (%.1fs)", time.perf_counter() - start)
+        return plan
 
     def _prepare_images(
         self,

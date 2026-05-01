@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 import logging
 from pathlib import Path
 import textwrap
+from urllib.request import urlopen
 
 from core.schema import ImageAsset, Scene
 from utils.media_utils import scene_filename
@@ -140,4 +141,86 @@ class PlaceholderImageProvider(ImageProvider):
             line_x = x + max(0, (width - (bbox[2] - bbox[0])) // 2)
             draw.text((line_x, current_y), line, font=font, fill=fill)
             current_y += (bbox[3] - bbox[1]) + line_spacing
+
+
+class ArkSeedreamImageProvider(ImageProvider):
+    """火山 Ark 豆包 Seedream 图片生成 Provider。"""
+
+    provider_name = "ark-seedream"
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        model: str,
+        size: str = "2K",
+        watermark: bool = True,
+        timeout: int = 180,
+        client=None,
+        downloader=None,
+    ):
+        self._base_url = base_url
+        self._api_key = api_key
+        self._model = model
+        self._size = size
+        self._watermark = watermark
+        self._timeout = timeout
+        self._client = client
+        self._downloader = downloader or self._download_url
+
+    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int) -> ImageAsset:
+        if not self._api_key:
+            raise RuntimeError("ArkSeedreamImageProvider 需要配置 image_gen.api_key 或 ARK_API_KEY")
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        image_path = output_dir / scene_filename(scene.index, ".png")
+        prompt = self._build_prompt(scene, width, height)
+        logger.info(
+            "Ark Seedream image start: scene=%03d model=%s size=%s prompt_len=%d",
+            scene.index, self._model, self._size, len(prompt),
+        )
+        response = self._client_or_create().images.generate(
+            model=self._model,
+            prompt=prompt,
+            size=self._size,
+            response_format="url",
+            extra_body={"watermark": self._watermark},
+        )
+        image_url = response.data[0].url
+        if not image_url:
+            raise RuntimeError("Ark Seedream did not return image url")
+        self._downloader(image_url, image_path)
+        logger.info("Ark Seedream image done: scene=%03d path=%s", scene.index, image_path)
+        return ImageAsset(
+            scene_index=scene.index,
+            path=str(image_path),
+            provider=self.provider_name,
+            prompt=prompt,
+        )
+
+    def _client_or_create(self):
+        if self._client is not None:
+            return self._client
+        from openai import OpenAI
+
+        self._client = OpenAI(
+            base_url=self._base_url,
+            api_key=self._api_key,
+            timeout=self._timeout,
+        )
+        return self._client
+
+    def _build_prompt(self, scene: Scene, width: int, height: int) -> str:
+        return (
+            f"{scene.image_prompt}\n"
+            f"画面描述：{scene.visual}\n"
+            f"画幅：竖屏 {width}x{height}，高清，电影感构图，干净背景。\n"
+            "限制：不要文字，不要字幕，不要 logo，不要水印，不要二维码。"
+        )
+
+    def _download_url(self, url: str, output_path: Path) -> None:
+        with urlopen(url, timeout=self._timeout) as response:
+            output_path.write_bytes(response.read())
 

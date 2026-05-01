@@ -136,7 +136,33 @@ class Settings:
     @property
     def tts_speed(self) -> float:               return self._get("tts_speed", 1.0)
 
+    # ---- image_gen 段 ----
+    @property
+    def image_gen_engine(self) -> str:          return self._get("image_gen_engine", "placeholder")
+    @property
+    def image_gen_base_url(self) -> str:        return self._get("image_gen_base_url", "")
+    @property
+    def image_gen_api_key(self) -> str:         return self._get("image_gen_api_key", "")
+    @property
+    def image_gen_model(self) -> str:           return self._get("image_gen_model", "")
+    @property
+    def image_gen_size(self) -> str:            return self._get("image_gen_size", "2K")
+    @property
+    def image_gen_watermark(self) -> bool:      return self._get("image_gen_watermark", True)
+    @property
+    def image_gen_width(self) -> int:           return self._get("image_gen_width", 1080)
+    @property
+    def image_gen_height(self) -> int:          return self._get("image_gen_height", 1920)
+
     # ---- video 段 ----
+    @property
+    def video_scene_splitter(self) -> str:      return self._get("video_scene_splitter", "rule")
+    @property
+    def video_scene_planner_instance(self) -> str: return self._get("video_scene_planner_instance", "scene_planner")
+    @property
+    def video_animation_planner(self) -> str:   return self._get("video_animation_planner", "rule")
+    @property
+    def video_animation_planner_instance(self) -> str: return self._get("video_animation_planner_instance", "animation_planner")
     @property
     def video_fps(self) -> int:                 return self._get("video_fps", 30)
     @property

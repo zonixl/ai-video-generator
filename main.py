@@ -18,6 +18,9 @@ from core.llm import ModelManager
 from core.embedder import Embedder
 from core.vectordb import VectorStore
 from core.retriever import Retriever
+from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
+from core.image_provider import ArkSeedreamImageProvider, PlaceholderImageProvider
+from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
 from pipeline.ingest import IngestPipeline
 from pipeline.generate import GeneratePipeline
 from pipeline.produce import ProducePipeline
@@ -77,7 +80,46 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
 
 
 def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
-    return ProducePipeline(cfg)
+    rule_splitter = RuleBasedSceneSplitter(
+        min_scene_duration=cfg.video_min_scene_duration,
+        max_scene_duration=cfg.video_max_scene_duration,
+        chars_per_second=cfg.video_chars_per_second,
+    )
+    if cfg.video_scene_splitter == "ai":
+        splitter = AISceneSplitter(
+            build_model_manager(cfg),
+            instance_name=cfg.video_scene_planner_instance,
+            fallback=rule_splitter,
+            min_scene_duration=cfg.video_min_scene_duration,
+            max_scene_duration=cfg.video_max_scene_duration,
+        )
+    else:
+        splitter = rule_splitter
+
+    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
+        image_provider = ArkSeedreamImageProvider(
+            base_url=cfg.image_gen_base_url,
+            api_key=cfg.image_gen_api_key,
+            model=cfg.image_gen_model,
+            size=cfg.image_gen_size,
+            watermark=cfg.image_gen_watermark,
+        )
+    else:
+        image_provider = PlaceholderImageProvider()
+
+    if cfg.video_animation_planner == "ai":
+        animation_planner = AIAnimationPlanner(
+            build_model_manager(cfg),
+            instance_name=cfg.video_animation_planner_instance,
+        )
+    else:
+        animation_planner = RuleBasedAnimationPlanner()
+    return ProducePipeline(
+        cfg,
+        splitter=splitter,
+        image_provider=image_provider,
+        animation_planner=animation_planner,
+    )
 
 
 def _process_one(args_tuple: tuple) -> dict:
@@ -310,7 +352,7 @@ def main():
     p_produce.add_argument("--from-plan", default=None, help="从已有 video_plan.json 继续执行")
     p_produce.add_argument(
         "--step",
-        choices=("all", "plan", "tts", "images", "clips", "subtitles", "compose"),
+        choices=("all", "plan", "animation", "tts", "images", "clips", "subtitles", "compose"),
         default="all",
         help="只执行某个阶段，默认 all",
     )

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
+import json
 
+from core import prompts
 from core.schema import Scene, VideoPlan
 
 
@@ -124,4 +126,137 @@ class RuleBasedSceneSplitter:
     def _pick_animation(self, index: int) -> str:
         animations = ("zoom_in", "zoom_out", "pan_left", "pan_right", "fade")
         return animations[(index - 1) % len(animations)]
+
+
+class AISceneSplitter:
+    """用 LLM 生成更详细的视频分镜脚本。"""
+
+    def __init__(
+        self,
+        model_manager,
+        *,
+        instance_name: str = "scene_planner",
+        fallback: RuleBasedSceneSplitter | None = None,
+        min_scene_duration: float = 5.0,
+        max_scene_duration: float = 8.0,
+    ):
+        self._mgr = model_manager
+        self._instance_name = instance_name
+        self._fallback = fallback or RuleBasedSceneSplitter(
+            min_scene_duration=min_scene_duration,
+            max_scene_duration=max_scene_duration,
+        )
+        self._min_duration = min_scene_duration
+        self._max_duration = max_scene_duration
+
+    def split(
+        self,
+        script: str,
+        *,
+        title: str | None = None,
+        style: str = "clean",
+        width: int = 1080,
+        height: int = 1920,
+        fps: int = 30,
+    ) -> VideoPlan:
+        """用 AI 分镜；解析失败时回退到规则分镜。"""
+        fallback_plan = self._fallback.split(
+            script, title=title, style=style, width=width, height=height, fps=fps,
+        )
+        user_prompt = prompts.SPLIT_SCENES.format(
+            title=title or fallback_plan.title,
+            style=style,
+            width=width,
+            height=height,
+            fps=fps,
+            min_duration=self._min_duration,
+            max_duration=self._max_duration,
+            script=fallback_plan.script or script,
+        )
+        try:
+            response = self._mgr.generate(
+                self._instance_name,
+                user_prompt,
+                system_prompt=prompts.SYSTEM_SCENE_PLANNER,
+            )
+            return self._parse_response(
+                response,
+                fallback_plan=fallback_plan,
+                style=style,
+                width=width,
+                height=height,
+                fps=fps,
+            )
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning("AI scene split failed; falling back to rule splitter", exc_info=True)
+            return fallback_plan
+
+    def _parse_response(
+        self,
+        response: str,
+        *,
+        fallback_plan: VideoPlan,
+        style: str,
+        width: int,
+        height: int,
+        fps: int,
+    ) -> VideoPlan:
+        data = json.loads(self._extract_json(response))
+        scenes_data = data.get("scenes", data if isinstance(data, list) else [])
+        scenes = []
+        for position, item in enumerate(scenes_data, start=1):
+            subtitle = str(item.get("subtitle") or item.get("narration") or "").strip()
+            if not subtitle:
+                continue
+            visual = str(item.get("visual") or item.get("画面描述") or subtitle).strip()
+            image_prompt = str(item.get("image_prompt") or visual).strip()
+            scenes.append(
+                Scene(
+                    index=int(item.get("index") or item.get("scene") or position),
+                    subtitle=subtitle,
+                    narration=str(item.get("narration") or subtitle).strip(),
+                    visual=visual,
+                    image_prompt=image_prompt,
+                    duration=self._normalize_duration(item.get("duration")),
+                    animation=self._fallback._pick_animation(position),
+                )
+            )
+
+        if not scenes:
+            return fallback_plan
+        for index, scene in enumerate(scenes, start=1):
+            scene.index = index
+        return VideoPlan(
+            title=str(data.get("title") or fallback_plan.title),
+            script=fallback_plan.script,
+            scenes=scenes,
+            width=width,
+            height=height,
+            fps=fps,
+            style=style,
+        )
+
+    def _extract_json(self, text: str) -> str:
+        text = text.strip()
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+        first_obj = text.find("{")
+        first_arr = text.find("[")
+        starts = [idx for idx in (first_obj, first_arr) if idx >= 0]
+        if not starts:
+            raise ValueError("No JSON found in AI scene response")
+        start = min(starts)
+        end = max(text.rfind("}"), text.rfind("]"))
+        if end < start:
+            raise ValueError("Invalid JSON bounds in AI scene response")
+        return text[start:end + 1]
+
+    def _normalize_duration(self, value) -> float:
+        try:
+            duration = float(value)
+        except (TypeError, ValueError):
+            duration = (self._min_duration + self._max_duration) / 2
+        return round(min(max(duration, self._min_duration), self._max_duration), 2)
 
