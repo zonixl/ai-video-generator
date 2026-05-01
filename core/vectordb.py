@@ -1,71 +1,54 @@
-"""向量数据库模块：ChromaDB 封装。"""
+"""向量数据库模块：LangChain Chroma 封装。"""
 
 import logging
-import threading
 from pathlib import Path
-import uuid
 
 logger = logging.getLogger(__name__)
-_write_lock = threading.Lock()
 
 
 class VectorStore:
-    """ChromaDB 向量存储，本地持久化。"""
+    """ChromaDB 向量存储，委托给 langchain_chroma.Chroma。"""
 
     def __init__(self, persist_dir: str | Path, collection_name: str,
                  embedder=None):
         import chromadb
-        from chromadb.config import Settings as ChromaSettings
+        from langchain_chroma import Chroma
 
         self._persist_dir = Path(persist_dir)
         self._persist_dir.mkdir(parents=True, exist_ok=True)
         self._collection_name = collection_name
-        self._embedder = embedder
 
-        logger.debug("Connecting to ChromaDB: persist_dir=%s collection=%s",
-                     self._persist_dir, collection_name)
-        self._client = chromadb.PersistentClient(
-            path=str(self._persist_dir),
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
-        self._collection = self._client.get_or_create_collection(
-            name=collection_name,
+        self._client = chromadb.PersistentClient(path=str(self._persist_dir))
+
+        # 接受多种 embedder 形式：Embedder 包装类、原始 embeddings 实例、或有 embed_query 的对象
+        if embedder is not None and hasattr(embedder, '_embeddings'):
+            embedding_function = embedder._embeddings
+        else:
+            embedding_function = embedder
+
+        self._store = Chroma(
+            client=self._client,
+            collection_name=collection_name,
+            embedding_function=embedding_function,
         )
         logger.info("VectorStore ready: collection=%s count=%d", collection_name, self.count())
 
+    # ---- 写入 ----
     def add_texts(self, texts: list[str], metadatas: list[dict] | None = None,
                   ids: list[str] | None = None) -> list[str]:
-        """添加文本到向量库，自动生成 embedding。"""
-        if ids is None:
-            ids = [str(uuid.uuid4()) for _ in texts]
-        if metadatas is None:
-            metadatas = [{} for _ in texts]
+        """添加文本到向量库，embedding 由 Chroma 内部自动生成。"""
+        logger.debug("Adding %d docs via Chroma.add_texts ...", len(texts))
+        result = self._store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+        logger.info("Added %d documents to vectordb", len(result))
+        return result
 
-        if self._embedder is None:
-            raise RuntimeError("Embedder not set; must provide embedder for add_texts")
-
-        logger.debug("Embedding %d texts for vector store...", len(texts))
-        embeddings = self._embedder.embed(texts)
-        logger.debug("Adding %d docs to collection...", len(texts))
-        with _write_lock:
-            self._collection.add(
-                ids=ids,
-                documents=texts,
-                embeddings=embeddings,
-                metadatas=metadatas,
-            )
-        logger.info("Added %d documents to vectordb", len(ids))
-        return ids
-
+    # ---- 查询 ----
     def search(self, query: str, top_k: int = 5) -> list[dict]:
-        """语义搜索，返回最相关文档。"""
-        if self._embedder is None:
-            raise RuntimeError("Embedder not set")
-
+        """语义搜索，返回最相关文档（带距离分数和 ID）。"""
         logger.debug("Searching: query='%s' top_k=%d", query[:80], top_k)
-        query_vector = self._embedder.embed_query(query)
-        results = self._collection.query(
-            query_embeddings=[query_vector],
+        query_embedding = self._store._embedding_function.embed_query(query)
+        results = self._store._collection.query(
+            query_embeddings=[query_embedding],
             n_results=top_k,
         )
         docs = []
@@ -80,40 +63,35 @@ class VectorStore:
         logger.debug("Search returned %d results", len(docs))
         return docs
 
+    # ---- 删除 ----
     def delete_by_ids(self, ids: list[str]) -> int:
-        """按 ID 删除文档。"""
-        with _write_lock:
-            self._collection.delete(ids=ids)
+        self._store.delete(ids=ids)
         logger.info("Deleted %d documents", len(ids))
         return len(ids)
 
     def delete_by_file(self, source_file: str) -> int:
-        """按来源文件删除所有关联文档。"""
-        results = self._collection.get(where={"source": source_file})
+        results = self._store._collection.get(where={"source": source_file})
         if results["ids"]:
-            with _write_lock:
-                self._collection.delete(ids=results["ids"])
+            self._store.delete(ids=results["ids"])
             logger.info("Deleted %d documents from source=%s", len(results["ids"]), source_file)
             return len(results["ids"])
         return 0
 
-    def check_hash_exists(self, file_hash: str) -> bool:
-        """检查指定 hash 的文件是否已入库。"""
-        results = self._collection.get(where={"file_hash": file_hash}, limit=1)
-        return bool(results["ids"])
-
     def delete_by_hash(self, file_hash: str) -> int:
-        """按文件 hash 删除所有关联文档。"""
-        results = self._collection.get(where={"file_hash": file_hash})
+        results = self._store._collection.get(where={"file_hash": file_hash})
         if results["ids"]:
-            with _write_lock:
-                self._collection.delete(ids=results["ids"])
+            self._store.delete(ids=results["ids"])
             logger.info("Deleted %d documents from hash=%s", len(results["ids"]), file_hash)
             return len(results["ids"])
         return 0
 
+    def check_hash_exists(self, file_hash: str) -> bool:
+        results = self._store._collection.get(where={"file_hash": file_hash}, limit=1)
+        return bool(results["ids"])
+
+    # ---- 统计 ----
     def count(self) -> int:
-        return self._collection.count()
+        return self._store._collection.count()
 
     def get_all(self) -> dict:
-        return self._collection.get()
+        return self._store._collection.get()

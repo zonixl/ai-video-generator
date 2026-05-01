@@ -1,4 +1,4 @@
-"""Embedding模型封装：sentence-transformers / BGE。"""
+"""Embedding模型封装：委托给 LangChain 的 HuggingFaceEmbeddings。"""
 
 import logging
 import torch
@@ -7,15 +7,19 @@ logger = logging.getLogger(__name__)
 
 
 class Embedder:
-    """本地 Embedding 模型，基于 sentence-transformers。"""
+    """本地 Embedding 模型，基于 langchain_community HuggingFaceEmbeddings。"""
 
     def __init__(self, model_name: str = "BAAI/bge-small-zh-v1.5", device: str = "cuda",
                  normalize: bool = True):
-        from sentence_transformers import SentenceTransformer
+        from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+
         device = self._resolve_device(device)
         logger.info("Loading embedding model: %s (device=%s)", model_name, device)
-        self._model = SentenceTransformer(model_name, device=device)
-        self._normalize = normalize
+        self._embeddings = HuggingFaceEmbeddings(
+            model_name=model_name,
+            model_kwargs={"device": device},
+            encode_kwargs={"normalize_embeddings": normalize},
+        )
         self._model_name = model_name
         logger.info("Embedding model loaded: dim=%d", self.dimension)
 
@@ -30,19 +34,12 @@ class Embedder:
         """批量向量化。"""
         if isinstance(texts, str):
             texts = [texts]
-        logger.debug("Embedding %d texts (batch_size=%d)", len(texts), batch_size)
-        embeddings = self._model.encode(
-            texts,
-            batch_size=batch_size,
-            normalize_embeddings=self._normalize,
-            show_progress_bar=False,
-        )
-        return embeddings.tolist()
+        return self._embeddings.embed_documents(texts)
 
     def embed_query(self, text: str) -> list[float]:
         """单条查询向量化。"""
-        return self.embed([text])[0]
+        return self._embeddings.embed_query(text)
 
     @property
     def dimension(self) -> int:
-        return self._model.get_embedding_dimension()
+        return self._embeddings._client.get_embedding_dimension()

@@ -8,8 +8,8 @@ import pytest
 
 
 class FakeEmbedder:
-    """简单的假 embedder，返回固定维度随机向量。"""
-    def embed(self, texts):
+    """简单的假 embedder，兼容 LangChain embeddings 接口。"""
+    def embed_documents(self, texts):
         import random
         return [[random.random() for _ in range(128)] for _ in texts]
 
