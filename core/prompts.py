@@ -199,7 +199,7 @@ PLAN_SCENE_ANIMATION = """## 任务
 SYSTEM_REMOTION_DESIGNER = (
     "你是一个 Remotion 图示视频编排师。你只输出严格 JSON，不输出 Markdown，不解释。\n"
     "你不能设计人物镜头，不能输出 React/CSS/自由坐标。\n"
-    "你只能使用 basic_diagram 模板，以及固定组件类型、slot、variant、motion。"
+    "你只能使用 basic_diagram 模板，以及固定组件类型、slot、variant、motion、icon。"
 )
 
 PLAN_REMOTION_SCENE = """## 任务
@@ -214,6 +214,23 @@ PLAN_REMOTION_SCENE = """## 任务
 - arrow：连接箭头
 - badge：强调标签
 - text：普通文字
+- metric：指标卡，text 格式为 `大数字|说明`
+- step：时间线/流程步骤
+- stat_counter：动态数字计数，text 格式为 `数字|说明|后缀`
+- progress：多进度条，text 格式为 `标签:百分比;标签:百分比`
+- list：动画列表，text 格式为 `要点1;要点2;要点3`
+- quote：引用观点卡，text 格式为 `观点|署名`
+- bar_chart：柱状图，text 格式为 `标签:数值;标签:数值`
+- line_chart：折线图，text 格式为 `标签:数值;标签:数值`
+- donut_chart：环形占比，text 格式为 `百分比|说明`
+- comparison：前后对比，text 格式为 `之前标签|之前百分比|之后标签|之后百分比`
+- circular_progress：圆形进度，text 格式为 `百分比|说明`
+- highlight_text：关键词高亮，text 格式为 `词1;词2;词3`
+- typewriter：打字机文本，text 是一句短句
+- progress_steps：流程步骤，text 格式为 `步骤1;步骤2;步骤3`
+- notification：通知堆叠，text 格式为 `通知1;通知2;通知3`
+- background_pattern：背景几何图案，text 可为空；每个 scene 最多一个
+- lower_third：下三分之一说明条，text 格式为 `标题|副标题`
 
 ## 可用 slot
 - title
@@ -242,14 +259,35 @@ PLAN_REMOTION_SCENE = """## 任务
 - pulse
 - none
 
+## 可用 icon
+- sparkles
+- brain
+- workflow
+- image
+- video
+- audio
+- check
+- x
+- zap
+- target
+- layers
+- code
+- settings
+
 ## 规则
-1. 禁止人物镜头，禁止写实人物，优先用图示、卡片、箭头、标签。
-2. 只能使用上面列出的 type、slot、variant、motion。
+1. 禁止人物镜头，禁止写实人物，优先用图示、卡片、箭头、标签、指标、步骤、计数器、进度条、列表、引用卡、图表模板。
+2. 只能使用上面列出的 type、slot、variant、motion、icon。
 3. 组件数量控制在 3-6 个。
 4. 文案要短，卡片文字尽量 2-10 个字。
-5. 如果表达“替换、否定、废弃”，可用 danger + strike。
-6. 如果表达“结果、目标、升级”，可用 success + pop。
-7. 输出严格 JSON 对象，不要包含 ```json。
+5. 每个 card、badge、metric、step 尽量选择一个 icon，arrow 可以不选 icon。
+6. 如果表达“替换、否定、废弃”，可用 danger + strike + x。
+7. 如果表达“结果、目标、升级”，可用 success + pop + check/target。
+8. 如果表达流程，优先使用 progress_steps、list 或 step，icon 可用 workflow、layers、settings、code。
+9. 如果表达数据、效率、成本、比例，优先使用 bar_chart、line_chart、comparison、donut_chart、circular_progress、stat_counter、metric 或 progress。
+10. 如果表达强调观点，优先使用 highlight_text、typewriter、quote 或 lower_third。
+11. 每个 scene 最多使用 1 个复杂模板：bar_chart、line_chart、donut_chart、comparison、circular_progress、progress_steps、notification。
+12. background_pattern 只能作为背景氛围组件，每个 scene 最多一个。
+13. 输出严格 JSON 对象，不要包含 ```json。
 
 ## 输出 JSON 格式
 {{
@@ -260,9 +298,10 @@ PLAN_REMOTION_SCENE = """## 任务
   "headline": "这一镜标题",
   "subtitle": "这一镜字幕",
   "components": [
-    {{"id": "c1", "type": "card", "slot": "left_top", "text": "问题", "variant": "danger", "motion": "strike"}},
-    {{"id": "a1", "type": "arrow", "slot": "center", "text": "", "variant": "default", "motion": "draw"}},
-    {{"id": "c2", "type": "card", "slot": "right_top", "text": "方案", "variant": "success", "motion": "pop"}}
+    {{"id": "c1", "type": "card", "slot": "left_top", "text": "问题", "variant": "danger", "motion": "strike", "icon": "x"}},
+    {{"id": "a1", "type": "arrow", "slot": "center", "text": "转化", "variant": "default", "motion": "draw"}},
+    {{"id": "c2", "type": "card", "slot": "right_top", "text": "方案", "variant": "success", "motion": "pop", "icon": "check"}},
+    {{"id": "m1", "type": "comparison", "slot": "bottom", "text": "旧方案|34|新方案|89", "variant": "warning", "motion": "slide_in", "icon": "target"}}
   ]
 }}
 

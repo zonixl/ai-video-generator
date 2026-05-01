@@ -37,6 +37,8 @@ class RemotionRenderer:
             command,
             cwd=self._project_dir,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             check=False,
         )

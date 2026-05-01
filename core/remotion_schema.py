@@ -7,10 +7,15 @@ from pathlib import Path
 from typing import Any, Literal
 
 
-ComponentType = Literal["title", "card", "arrow", "badge", "text"]
+ComponentType = Literal[
+    "title", "card", "arrow", "badge", "text", "metric", "step", "stat_counter", "progress", "list", "quote",
+    "bar_chart", "line_chart", "donut_chart", "comparison", "circular_progress", "highlight_text", "typewriter",
+    "progress_steps", "notification", "background_pattern", "lower_third",
+]
 ComponentSlot = Literal["title", "left_top", "left_bottom", "right_top", "right_bottom", "center", "bottom", "caption"]
 ComponentVariant = Literal["default", "primary", "success", "danger", "warning", "muted"]
 MotionType = Literal["fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"]
+IconName = Literal["sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers", "code", "settings"]
 
 
 @dataclass
@@ -21,6 +26,7 @@ class RemotionComponentSpec:
     text: str = ""
     variant: ComponentVariant = "default"
     motion: MotionType = "fade_in"
+    icon: IconName | str = ""
 
 
 @dataclass
@@ -70,13 +76,20 @@ def to_dict(value: Any) -> Any:
 def component_from_dict(data: dict[str, Any], fallback_id: str) -> RemotionComponentSpec:
     return RemotionComponentSpec(
         id=str(data.get("id") or fallback_id),
-        type=_choice(data.get("type"), {"title", "card", "arrow", "badge", "text"}, "card"),
+        type=_choice(data.get("type"), {
+            "title", "card", "arrow", "badge", "text", "metric", "step", "stat_counter", "progress", "list", "quote",
+            "bar_chart", "line_chart", "donut_chart", "comparison", "circular_progress", "highlight_text", "typewriter",
+            "progress_steps", "notification", "background_pattern", "lower_third",
+        }, "card"),
         slot=_choice(data.get("slot"), {
             "title", "left_top", "left_bottom", "right_top", "right_bottom", "center", "bottom", "caption"
         }, "bottom"),
         text=str(data.get("text", "")),
         variant=_choice(data.get("variant"), {"default", "primary", "success", "danger", "warning", "muted"}, "default"),
         motion=_choice(data.get("motion"), {"fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"}, "fade_in"),
+        icon=_choice(data.get("icon"), {
+            "sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers", "code", "settings"
+        }, ""),
     )
 
 

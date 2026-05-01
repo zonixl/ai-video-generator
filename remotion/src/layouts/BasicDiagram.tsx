@@ -1,20 +1,20 @@
 import React from 'react';
 import {interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {ComponentSpec, ComponentSlot, RemotionSceneSpec} from '../schema';
-import {Arrow} from '../components/Arrow';
-import {Badge} from '../components/Badge';
 import {Canvas} from '../components/Canvas';
-import {Card} from '../components/Card';
 import {TextBlock} from '../components/TextBlock';
+import {BackgroundPattern} from '../templates/BackgroundPattern';
+import {GridPulse} from '../templates/GridPulse';
+import {renderRegistryComponent} from '../templates/registry';
 
 const slotStyles: Record<ComponentSlot, React.CSSProperties> = {
   title: {left: 130, top: 150, width: 820},
-  left_top: {left: 170, top: 430, width: 330},
-  left_bottom: {left: 170, top: 600, width: 330},
-  right_top: {left: 590, top: 430, width: 330},
-  right_bottom: {left: 590, top: 600, width: 330},
-  center: {left: 462, top: 520, width: 170},
-  bottom: {left: 270, top: 800, width: 540},
+  left_top: {left: 150, top: 430, width: 360},
+  left_bottom: {left: 150, top: 610, width: 360},
+  right_top: {left: 570, top: 430, width: 360},
+  right_bottom: {left: 570, top: 610, width: 360},
+  center: {left: 451, top: 525, width: 178},
+  bottom: {left: 230, top: 830, width: 620},
   caption: {left: 130, bottom: 120, width: 820}
 };
 
@@ -40,6 +40,10 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
 
   return (
     <Canvas scene={scene}>
+      <GridPulse />
+      {scene.components.some((component) => component.type === 'background_pattern') ? (
+        <BackgroundPattern component={scene.components.find((component) => component.type === 'background_pattern')} />
+      ) : null}
       <TextBlock
         component={{id: 'headline', type: 'title', slot: 'title', text: scene.headline, motion: 'slide_in'}}
         style={{position: 'absolute' as const, ...slotStyles.title, ...motionStyle({id: 'headline', type: 'title', slot: 'title', motion: 'slide_in'}, frame, fps, 0)}}
@@ -50,51 +54,26 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
           ...slotStyles[component.slot],
           ...motionStyle(component, frame, fps, index + 1)
         };
-        if (component.type === 'arrow') {
-          const progress = interpolate(frame, [18 + index * 8, 38 + index * 8], [0, 1], {
-            extrapolateLeft: 'clamp',
-            extrapolateRight: 'clamp'
-          });
-          return <Arrow key={component.id} progress={progress} style={baseStyle} />;
+        if (component.type === 'background_pattern') {
+          return null;
         }
-        if (component.type === 'badge') {
-          return <Badge key={component.id} component={component} style={baseStyle} />;
-        }
-        if (component.type === 'text' || component.type === 'title') {
-          return <TextBlock key={component.id} component={component} style={baseStyle} />;
-        }
-        return (
-          <div key={component.id} style={baseStyle}>
-            <Card component={component} />
-            {component.motion === 'strike' ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: -20,
-                  right: -20,
-                  top: '50%',
-                  height: 8,
-                  background: '#202124',
-                  transform: 'rotate(-2deg)'
-                }}
-              />
-            ) : null}
-          </div>
-        );
+        return renderRegistryComponent({component, frame, index, style: baseStyle});
       })}
       {scene.subtitle ? (
         <div
           style={{
             position: 'absolute',
             ...slotStyles.caption,
-            background: 'rgba(0,0,0,0.68)',
+            background: 'rgba(22,32,51,0.78)',
             color: '#fff',
-            padding: '20px 28px',
-            borderRadius: 18,
-            fontSize: 34,
-            fontWeight: 700,
+            padding: '22px 32px',
+            borderRadius: 26,
+            fontSize: 32,
+            fontWeight: 750,
             lineHeight: 1.3,
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 18px 50px rgba(28,35,58,0.18)',
+            backdropFilter: 'blur(16px)'
           }}
         >
           {scene.subtitle}

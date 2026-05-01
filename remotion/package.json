@@ -4,13 +4,17 @@
   "private": true,
   "scripts": {
     "render": "remotion render src/index.ts DiagramVideo",
-    "preview": "remotion preview src/index.ts"
+    "preview": "remotion preview src/index.ts",
+    "component-showcase": "remotion render src/index.ts ComponentShowcase ../outputs/videos/remotion_components_showcase.mp4",
+    "template-showcase": "remotion render src/index.ts TemplateShowcase ../outputs/videos/remotion_template_showcase.mp4",
+    "showcase": "npm run template-showcase"
   },
   "dependencies": {
     "@remotion/cli": "latest",
-    "remotion": "latest",
+    "lucide-react": "^1.14.0",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "remotion": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",

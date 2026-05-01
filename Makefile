@@ -11,6 +11,9 @@ help:
 	@cmd /C echo   make produce-remotion ARGS=... script -^> Remotion video
 	@cmd /C echo   make remotion-plan ARGS=... generate Remotion input JSON
 	@cmd /C echo   make remotion-render JOB=... render existing Remotion job
+	@cmd /C echo   make remotion-preview     open Remotion Studio
+	@cmd /C echo   make remotion-showcase    render RVE template showcase
+	@cmd /C echo   make remotion-component-showcase render base component showcase
 	@cmd /C echo   make produce-tts JOB=... add TTS and rebuild existing video job
 	@cmd /C echo   make produce-step JOB=... STEP=... rerun one produce step
 	@cmd /C echo   make status            view knowledge base
@@ -31,6 +34,9 @@ help:
 	@cmd /C echo     make produce-remotion ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion'
 	@cmd /C echo     make remotion-plan ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --force'
 	@cmd /C echo     make remotion-render JOB=demo-remotion
+	@cmd /C echo     make remotion-preview
+	@cmd /C echo     make remotion-showcase
+	@cmd /C echo     make remotion-component-showcase
 	@cmd /C echo     make produce-tts JOB=demo1
 	@cmd /C echo     make produce-step JOB=demo1 STEP=animation ARGS=--force
 	@cmd /C echo     make produce-step JOB=demo1 STEP=clips ARGS=--force
@@ -61,6 +67,15 @@ remotion-plan:
 
 remotion-render:
 	uv run python main.py produce-remotion --job-id $(JOB) --step render $(ARGS)
+
+remotion-preview:
+	@cmd /C "cd remotion && npm run preview"
+
+remotion-showcase:
+	@cmd /C "cd remotion && npm run showcase"
+
+remotion-component-showcase:
+	@cmd /C "cd remotion && npm run component-showcase"
 
 produce-tts:
 	uv run python main.py produce --job-id $(JOB) --step tts --tts --force $(ARGS)

@@ -35,10 +35,10 @@ class RuleBasedRemotionPlanner:
                     headline=video_plan.title if scene.index == 1 else f"要点 {scene.index}",
                     subtitle=scene.subtitle,
                     components=[
-                        RemotionComponentSpec("main", "card", "left_top", scene.subtitle[:18], "primary", "pop"),
+                        RemotionComponentSpec("main", "card", "left_top", scene.subtitle[:18], "primary", "pop", "brain"),
                         RemotionComponentSpec("arrow", "arrow", "center", "", "default", "draw"),
-                        RemotionComponentSpec("result", "card", "right_top", "关键结论", "success", "pop"),
-                        RemotionComponentSpec("badge", "badge", "bottom", "AI -> Remotion", "warning", "slide_in"),
+                        RemotionComponentSpec("result", "card", "right_top", "关键结论", "success", "pop", "check"),
+                        RemotionComponentSpec("badge", "badge", "bottom", "AI -> Remotion", "warning", "slide_in", "workflow"),
                     ],
                 )
             )

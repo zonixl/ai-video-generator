@@ -1,6 +1,7 @@
 import React from 'react';
 import type {ComponentSpec} from '../schema';
 import {theme, variantStyle} from '../styles/theme';
+import {Icon} from './Icon';
 
 export const Card: React.FC<{component: ComponentSpec; style?: React.CSSProperties}> = ({component, style}) => {
   const colors = variantStyle(component.variant);
@@ -8,23 +9,43 @@ export const Card: React.FC<{component: ComponentSpec; style?: React.CSSProperti
     <div
       style={{
         minHeight: 92,
-        borderRadius: 18,
-        border: `4px solid ${colors.border}`,
+        borderRadius: 28,
+        border: `1.5px solid ${colors.border}`,
         background: colors.background,
         color: colors.color,
-        boxShadow: `10px 10px 0 ${theme.shadow}`,
+        boxShadow: theme.shadow,
         display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '18px 28px',
-        fontSize: 36,
+        padding: '28px 30px',
+        fontSize: 34,
         fontWeight: 800,
         textAlign: 'center',
-        lineHeight: 1.18,
+        lineHeight: 1.16,
+        letterSpacing: '-0.04em',
+        backdropFilter: 'blur(18px)',
         ...style
       }}
     >
-      {component.text}
+      {component.icon ? (
+        <div
+          style={{
+            width: 58,
+            height: 58,
+            borderRadius: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(255,255,255,0.62)',
+            color: colors.accent
+          }}
+        >
+          <Icon name={component.icon} />
+        </div>
+      ) : null}
+      <div>{component.text}</div>
     </div>
   );
 };

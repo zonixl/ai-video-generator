@@ -1,5 +1,41 @@
-export type ComponentType = 'title' | 'card' | 'arrow' | 'badge' | 'text';
+export type ComponentType =
+  | 'title'
+  | 'card'
+  | 'arrow'
+  | 'badge'
+  | 'text'
+  | 'metric'
+  | 'step'
+  | 'stat_counter'
+  | 'progress'
+  | 'list'
+  | 'quote'
+  | 'bar_chart'
+  | 'line_chart'
+  | 'donut_chart'
+  | 'comparison'
+  | 'circular_progress'
+  | 'highlight_text'
+  | 'typewriter'
+  | 'progress_steps'
+  | 'notification'
+  | 'background_pattern'
+  | 'lower_third';
 export type ComponentVariant = 'default' | 'primary' | 'success' | 'danger' | 'warning' | 'muted';
+export type IconName =
+  | 'sparkles'
+  | 'brain'
+  | 'workflow'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'check'
+  | 'x'
+  | 'zap'
+  | 'target'
+  | 'layers'
+  | 'code'
+  | 'settings';
 export type ComponentSlot =
   | 'title'
   | 'left_top'
@@ -18,6 +54,7 @@ export interface ComponentSpec {
   text?: string;
   variant?: ComponentVariant;
   motion?: MotionType;
+  icon?: IconName;
 }
 
 export interface RemotionSceneSpec {

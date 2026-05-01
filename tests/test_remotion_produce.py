@@ -38,6 +38,8 @@ def test_ai_remotion_planner_parses_scene_json():
     assert spec.scenes[0].headline == "实验"
     assert spec.scenes[0].components[0].slot == "left_top"
     assert spec.scenes[0].components[0].motion == "strike"
+    assert spec.scenes[0].components[0].icon == "x"
+    assert spec.scenes[0].components[2].type == "comparison"
 
 
 def test_produce_remotion_plan_writes_input(tmp_path):
@@ -102,9 +104,9 @@ class FakePlanner:
                     headline="实验",
                     subtitle="AI 生成 JSON。",
                     components=[
-                        RemotionComponentSpec("a", "card", "left_top", "旧流程", "danger", "strike"),
+                        RemotionComponentSpec("a", "card", "left_top", "旧流程", "danger", "strike", "x"),
                         RemotionComponentSpec("arrow", "arrow", "center", "", "default", "draw"),
-                        RemotionComponentSpec("b", "card", "right_top", "新流程", "success", "pop"),
+                        RemotionComponentSpec("b", "card", "right_top", "新流程", "success", "pop", "check"),
                     ],
                 )
             ],
@@ -136,9 +138,9 @@ class FakeModelManager:
           "headline": "实验",
           "subtitle": "从旧方式切换到新方式。",
           "components": [
-            {"id": "old", "type": "card", "slot": "left_top", "text": "旧方式", "variant": "danger", "motion": "strike"},
+            {"id": "old", "type": "card", "slot": "left_top", "text": "旧方式", "variant": "danger", "motion": "strike", "icon": "x"},
             {"id": "arrow", "type": "arrow", "slot": "center", "text": "", "variant": "default", "motion": "draw"},
-            {"id": "new", "type": "card", "slot": "right_top", "text": "新方式", "variant": "success", "motion": "pop"}
+            {"id": "new", "type": "comparison", "slot": "right_top", "text": "旧方式|34|新方式|89", "variant": "success", "motion": "pop", "icon": "check"}
           ]
         }
         """
@@ -159,7 +161,7 @@ def _fake_spec_dict():
                 "headline": "实验",
                 "subtitle": "测试字幕",
                 "components": [
-                    {"id": "a", "type": "card", "slot": "left_top", "text": "A", "variant": "primary", "motion": "pop"}
+                    {"id": "a", "type": "bar_chart", "slot": "left_top", "text": "规划:80;渲染:90", "variant": "primary", "motion": "pop", "icon": "target"}
                 ],
             }
         ],
