@@ -196,6 +196,89 @@ PLAN_SCENE_ANIMATION = """## 任务
 
 请只输出 JSON："""
 
+SYSTEM_REMOTION_DESIGNER = (
+    "你是一个 Remotion 图示视频编排师。你只输出严格 JSON，不输出 Markdown，不解释。\n"
+    "你不能设计人物镜头，不能输出 React/CSS/自由坐标。\n"
+    "你只能使用 basic_diagram 模板，以及固定组件类型、slot、variant、motion。"
+)
+
+PLAN_REMOTION_SCENE = """## 任务
+把下面这个短视频分镜转换成 Remotion 图示组件 JSON。只做一个 scene。
+
+## 可用模板
+- basic_diagram
+
+## 可用组件 type
+- title：标题文本
+- card：信息卡片
+- arrow：连接箭头
+- badge：强调标签
+- text：普通文字
+
+## 可用 slot
+- title
+- left_top
+- left_bottom
+- right_top
+- right_bottom
+- center
+- bottom
+- caption
+
+## 可用 variant
+- default
+- primary
+- success
+- danger
+- warning
+- muted
+
+## 可用 motion
+- fade_in
+- slide_in
+- pop
+- draw
+- strike
+- pulse
+- none
+
+## 规则
+1. 禁止人物镜头，禁止写实人物，优先用图示、卡片、箭头、标签。
+2. 只能使用上面列出的 type、slot、variant、motion。
+3. 组件数量控制在 3-6 个。
+4. 文案要短，卡片文字尽量 2-10 个字。
+5. 如果表达“替换、否定、废弃”，可用 danger + strike。
+6. 如果表达“结果、目标、升级”，可用 success + pop。
+7. 输出严格 JSON 对象，不要包含 ```json。
+
+## 输出 JSON 格式
+{{
+  "scene_index": 1,
+  "duration": 5.0,
+  "template": "basic_diagram",
+  "theme": "warm_grid",
+  "headline": "这一镜标题",
+  "subtitle": "这一镜字幕",
+  "components": [
+    {{"id": "c1", "type": "card", "slot": "left_top", "text": "问题", "variant": "danger", "motion": "strike"}},
+    {{"id": "a1", "type": "arrow", "slot": "center", "text": "", "variant": "default", "motion": "draw"}},
+    {{"id": "c2", "type": "card", "slot": "right_top", "text": "方案", "variant": "success", "motion": "pop"}}
+  ]
+}}
+
+## 视频参数
+- 标题：{title}
+- 宽高：{width}x{height}
+- FPS：{fps}
+
+## 当前分镜
+- 序号：{index}
+- 时长：{duration}
+- 字幕：{subtitle}
+- 画面描述：{visual}
+
+请只输出 JSON："""
+
 OLD_SPLIT_SCENES = """将以下文案拆分为短视频分镜描述，每个分镜包含：画面描述、字幕文本、预估时长。
 
 ## 文案

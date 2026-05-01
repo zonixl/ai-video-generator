@@ -23,6 +23,11 @@ venv/
 .pytest_cache/
 .coverage
 
+# Node / Remotion
+node_modules/
+remotion/node_modules/
+remotion/out/
+
 # Project data (runtime)
 data/vectordb/
 outputs/
@@ -43,3 +48,4 @@ config/config.yaml
 
 # Shim
 pyaudioop.py
+/.cursor/

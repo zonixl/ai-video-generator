@@ -20,10 +20,13 @@ from core.vectordb import VectorStore
 from core.retriever import Retriever
 from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
 from core.image_provider import ArkSeedreamImageProvider, PlaceholderImageProvider
+from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
+from core.remotion_renderer import RemotionRenderer
 from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
 from pipeline.ingest import IngestPipeline
 from pipeline.generate import GeneratePipeline
 from pipeline.produce import ProducePipeline
+from pipeline.produce_remotion import ProduceRemotionPipeline
 
 logger = logging.getLogger("main")
 
@@ -119,6 +122,23 @@ def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
         splitter=splitter,
         image_provider=image_provider,
         animation_planner=animation_planner,
+    )
+
+
+def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False) -> ProduceRemotionPipeline:
+    rule_planner = RuleBasedRemotionPlanner()
+    if cfg.remotion_planner == "ai" and not render_only:
+        planner = AIRemotionPlanner(
+            build_model_manager(cfg),
+            instance_name=cfg.remotion_planner_instance,
+            fallback=rule_planner,
+        )
+    else:
+        planner = rule_planner
+    return ProduceRemotionPipeline(
+        cfg,
+        planner=planner,
+        renderer=RemotionRenderer(cfg.remotion_project_dir),
     )
 
 
@@ -223,6 +243,24 @@ def cmd_produce(args):
         force=args.force,
     )
     logger.info("produce completed: %s", result.video_path)
+
+
+def cmd_produce_remotion(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_produce_remotion_pipeline(cfg, render_only=args.step == "render")
+    result = pipeline.run(
+        args.script,
+        job_id=args.job_id,
+        output_path=args.output,
+        title=args.title,
+        width=args.width,
+        height=args.height,
+        fps=args.fps,
+        step=args.step,
+        force=args.force,
+    )
+    logger.info("produce-remotion completed: %s", result.video_path)
 
 
 def cmd_status(args):
@@ -362,6 +400,22 @@ def main():
     p_produce.set_defaults(use_tts=False)
     p_produce.add_argument("--reuse-assets", action="store_true", help="复用已存在的图片和片段")
 
+    p_remotion = subparsers.add_parser("produce-remotion", help="根据文案生成 Remotion 图示视频")
+    p_remotion.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
+    p_remotion.add_argument("--job-id", default=None, help="Remotion 任务 ID")
+    p_remotion.add_argument("--output", "-o", default=None, help="输出 mp4 路径（可选）")
+    p_remotion.add_argument("--title", default=None, help="视频标题（可选）")
+    p_remotion.add_argument("--width", type=int, default=None, help="视频宽度，默认读取配置")
+    p_remotion.add_argument("--height", type=int, default=None, help="视频高度，默认读取配置")
+    p_remotion.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
+    p_remotion.add_argument(
+        "--step",
+        choices=("all", "plan", "render"),
+        default="all",
+        help="Remotion 阶段：all / plan / render",
+    )
+    p_remotion.add_argument("--force", action="store_true", help="强制重做 Remotion input")
+
     subparsers.add_parser("status", help="查看知识库状态")
 
     p_clear = subparsers.add_parser("clear", help="清空知识库")
@@ -381,6 +435,7 @@ def main():
         "generate": cmd_generate,
         "polish": cmd_polish,
         "produce": cmd_produce,
+        "produce-remotion": cmd_produce_remotion,
         "status": cmd_status,
         "clear": cmd_clear,
         "nuke": cmd_nuke,

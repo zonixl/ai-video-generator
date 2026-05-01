@@ -127,6 +127,8 @@ class Settings:
     def output_subtitles_dir(self) -> Path:     return self._resolve_path("output_subtitles_dir")
     @property
     def output_plans_dir(self) -> Path:         return self._resolve_path("output_plans_dir")
+    @property
+    def output_remotion_dir(self) -> Path:      return self._resolve_path("output_remotion_dir")
 
     # ---- tts 段 ----
     @property
@@ -185,6 +187,14 @@ class Settings:
     def video_chars_per_second(self) -> float:  return self._get("video_chars_per_second", 4.5)
     @property
     def video_subtitle_max_chars(self) -> int:  return self._get("video_subtitle_max_chars", 20)
+
+    # ---- remotion 段 ----
+    @property
+    def remotion_planner(self) -> str:          return self._get("remotion_planner", "rule")
+    @property
+    def remotion_planner_instance(self) -> str: return self._get("remotion_planner_instance", "remotion_designer")
+    @property
+    def remotion_project_dir(self) -> Path:     return self._resolve_path("remotion_project_dir")
 
     # ---- logging 段 ----
     @property

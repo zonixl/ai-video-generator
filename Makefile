@@ -8,6 +8,9 @@ help:
 	@cmd /C echo   make generate ARGS=... topic -^> script
 	@cmd /C echo   make polish ARGS=...   polish a script
 	@cmd /C echo   make produce ARGS=...  script -^> video
+	@cmd /C echo   make produce-remotion ARGS=... script -^> Remotion video
+	@cmd /C echo   make remotion-plan ARGS=... generate Remotion input JSON
+	@cmd /C echo   make remotion-render JOB=... render existing Remotion job
 	@cmd /C echo   make produce-tts JOB=... add TTS and rebuild existing video job
 	@cmd /C echo   make produce-step JOB=... STEP=... rerun one produce step
 	@cmd /C echo   make status            view knowledge base
@@ -25,6 +28,9 @@ help:
 	@cmd /C echo     make generate ARGS=-t AI_topic
 	@cmd /C echo     make polish ARGS='-i ./outputs/scripts/demo.md -f xxx'
 	@cmd /C echo     make produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1 --no-tts'
+	@cmd /C echo     make produce-remotion ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion'
+	@cmd /C echo     make remotion-plan ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --force'
+	@cmd /C echo     make remotion-render JOB=demo-remotion
 	@cmd /C echo     make produce-tts JOB=demo1
 	@cmd /C echo     make produce-step JOB=demo1 STEP=animation ARGS=--force
 	@cmd /C echo     make produce-step JOB=demo1 STEP=clips ARGS=--force
@@ -46,6 +52,15 @@ polish:
 
 produce:
 	uv run python main.py produce $(ARGS)
+
+produce-remotion:
+	uv run python main.py produce-remotion $(ARGS)
+
+remotion-plan:
+	uv run python main.py produce-remotion --step plan $(ARGS)
+
+remotion-render:
+	uv run python main.py produce-remotion --job-id $(JOB) --step render $(ARGS)
 
 produce-tts:
 	uv run python main.py produce --job-id $(JOB) --step tts --tts --force $(ARGS)
