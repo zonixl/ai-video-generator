@@ -66,6 +66,13 @@ class IngestPipeline:
         raw_text = "\n".join(s["text"] for s in all_segments if s["text"])
         raw_text = clean_text(raw_text)
 
+        if not raw_text or len(raw_text) < 10:
+            logger.warning("No meaningful speech detected, skipping")
+            return {"chunks": 0, "ids": [], "skipped": True,
+                    "raw_chars": 0, "restructured_chars": 0,
+                    "raw_transcript_path": "", "restructured_path": "",
+                    "segment_count": 0}
+
         # 保存原始转写
         raw_transcript_path = save_transcript(
             raw_text, audio_path, self._cfg.output_transcripts_dir

@@ -75,13 +75,43 @@ def cmd_ingest(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     pipeline = build_ingest_pipeline(cfg)
-    result = pipeline.run(args.input, force=args.force)
-    if result.get("skipped"):
-        logger.info("ingest skipped: duplicate file (hash=%s), use --force to re-ingest", result["hash"])
-        return
-    logger.info("ingest completed: %d chunks, raw=%d chars, restructured=%d chars -> %s",
-                result["chunks"], result["raw_chars"], result["restructured_chars"],
-                result["restructured_path"])
+
+    input_path = Path(args.input)
+    if input_path.is_dir():
+        # 批量模式：遍历文件夹中所有音频文件（跳过<10KB的碎片文件）
+        from utils.file_utils import is_audio_file
+        audio_files = sorted(
+            f for f in input_path.rglob("*")
+            if f.is_file() and is_audio_file(f) and f.stat().st_size > 10_000
+        )
+        if not audio_files:
+            logger.warning("No audio files found in: %s", input_path)
+            return
+        logger.info("Batch ingest: %d audio files found in %s", len(audio_files), input_path)
+        ok, skip, fail = 0, 0, 0
+        for i, audio_file in enumerate(audio_files, 1):
+            logger.info("=" * 40)
+            logger.info("[%d/%d] %s", i, len(audio_files), audio_file.name)
+            try:
+                result = pipeline.run(str(audio_file), force=args.force)
+                if result.get("skipped"):
+                    skip += 1
+                else:
+                    ok += 1
+            except Exception as e:
+                logger.error("Failed: %s - %s", audio_file.name, e)
+                fail += 1
+        logger.info("Batch done: %d ok, %d skipped, %d failed, %d total",
+                    ok, skip, fail, len(audio_files))
+    else:
+        # 单文件模式
+        result = pipeline.run(args.input, force=args.force)
+        if result.get("skipped"):
+            logger.info("ingest skipped: duplicate file (hash=%s), use --force to re-ingest", result["hash"])
+            return
+        logger.info("ingest completed: %d chunks, raw=%d chars, restructured=%d chars -> %s",
+                    result["chunks"], result["raw_chars"], result["restructured_chars"],
+                    result["restructured_path"])
 
 
 def cmd_generate(args):
@@ -204,7 +234,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
 
     p_ingest = subparsers.add_parser("ingest", help="摄入音频到知识库")
-    p_ingest.add_argument("--input", "-i", required=True, help="音频文件路径")
+    p_ingest.add_argument("--input", "-i", required=True, help="音频文件或文件夹路径")
     p_ingest.add_argument("--force", "-f", action="store_true", help="强制重新摄入（覆盖已有数据）")
 
     p_gen = subparsers.add_parser("generate", help="根据话题生成文案")
