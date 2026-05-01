@@ -1,0 +1,244 @@
+"""CLI 入口：AI内容生产系统。"""
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from config import Settings
+from utils.logger import setup_logging
+from core.stt import SpeechToText
+from core.llm import ModelManager
+from core.embedder import Embedder
+from core.vectordb import VectorStore
+from core.retriever import Retriever
+from pipeline.ingest import IngestPipeline
+from pipeline.generate import GeneratePipeline
+
+logger = logging.getLogger("main")
+
+
+def build_model_manager(cfg: Settings) -> ModelManager:
+    logger.debug("Building ModelManager...")
+    return ModelManager(
+        providers_cfg=cfg.models_providers,
+        instances_cfg=cfg.models_instances,
+    )
+
+
+def build_ingest_pipeline(cfg: Settings) -> IngestPipeline:
+    model_mgr = build_model_manager(cfg)
+    stt = SpeechToText(
+        model_size=cfg.stt_model_size,
+        device=cfg.stt_device,
+        compute_type=cfg.stt_compute_type,
+        language=cfg.stt_language,
+    )
+    embedder = Embedder(
+        model_name=cfg.embedding_model_name,
+        device=cfg.embedding_device,
+        normalize=cfg.embedding_normalize,
+    )
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+        embedder=embedder,
+    )
+    return IngestPipeline(stt, embedder, vs, model_mgr, cfg)
+
+
+def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
+    model_mgr = build_model_manager(cfg)
+    embedder = Embedder(
+        model_name=cfg.embedding_model_name,
+        device=cfg.embedding_device,
+        normalize=cfg.embedding_normalize,
+    )
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+        embedder=embedder,
+    )
+    retriever = Retriever(
+        vector_store=vs,
+        embedder=embedder,
+        strategy=cfg.retrieval_strategy,
+        top_k=cfg.retrieval_top_k,
+        mmr_lambda=cfg.retrieval_mmr_lambda,
+    )
+    return GeneratePipeline(retriever, model_mgr, cfg)
+
+
+def cmd_ingest(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_ingest_pipeline(cfg)
+    result = pipeline.run(args.input, force=args.force)
+    if result.get("skipped"):
+        logger.info("ingest skipped: duplicate file (hash=%s), use --force to re-ingest", result["hash"])
+        return
+    logger.info("ingest completed: %d chunks, raw=%d chars, restructured=%d chars -> %s",
+                result["chunks"], result["raw_chars"], result["restructured_chars"],
+                result["restructured_path"])
+
+
+def cmd_generate(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_generate_pipeline(cfg)
+    script = pipeline.run(args.topic, style=args.style or "专业但不枯燥，适合短视频口播")
+    logger.info("generate completed: %d chars", len(script))
+
+
+def cmd_polish(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_generate_pipeline(cfg)
+    polished = pipeline.polish_to_file(args.input, args.feedback)
+    logger.info("polish completed: %d chars", len(polished))
+
+
+def cmd_status(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+    )
+    model_mgr = build_model_manager(cfg)
+    count = vs.count()
+    logger.info("knowledge base status: collection=%s count=%d path=%s",
+                cfg.vectordb_collection_name, count, cfg.vectordb_persist_dir)
+    logger.info("available model instances: %s", model_mgr.list_instances())
+
+
+def cmd_nuke(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    if not args.confirm:
+        logger.warning("nuke requires --confirm flag. This will delete ALL data!")
+        return
+
+    import shutil
+
+    # 1. 清空向量库
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+    )
+    all_data = vs.get_all()
+    if all_data.get("ids"):
+        vs.delete_by_ids(all_data["ids"])
+        logger.info("[1/4] vectordb: deleted %d documents", len(all_data["ids"]))
+    else:
+        logger.info("[1/4] vectordb: already empty")
+
+    # 2. 清空转写
+    t_dir = cfg.output_transcripts_dir
+    if t_dir.exists():
+        shutil.rmtree(t_dir)
+        t_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("[2/4] transcripts: cleared")
+
+    # 3. 清空文案
+    s_dir = cfg.output_scripts_dir
+    if s_dir.exists():
+        shutil.rmtree(s_dir)
+        s_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("[3/4] scripts: cleared")
+
+    # 4. 清空日志（当前进程占用可能删不掉，忽略）
+    import logging as _logging
+    for handler in _logging.root.handlers[:]:
+        if isinstance(handler, _logging.FileHandler):
+            handler.close()
+            _logging.root.removeHandler(handler)
+
+    log_path = cfg.logging_file
+    try:
+        if log_path.exists():
+            log_path.unlink()
+    except PermissionError:
+        pass
+    log_dir = log_path.parent
+    if log_dir.exists():
+        for f in log_dir.glob("*.log*"):
+            try:
+                f.unlink()
+            except PermissionError:
+                pass
+    print("[4/4] logs: cleared")
+
+    logger.info("nuke complete - all data wiped")
+
+
+def cmd_clear(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    if not args.confirm:
+        logger.warning("clear requires --confirm flag")
+        return
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+    )
+    all_data = vs.get_all()
+    if all_data.get("ids"):
+        vs.delete_by_ids(all_data["ids"])
+        logger.info("cleared %d documents", len(all_data["ids"]))
+    else:
+        logger.info("knowledge base already empty")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="AI内容生产系统 - 短视频文案自动生成"
+    )
+    parser.add_argument("--config", "-c", default=None,
+                        help="配置文件路径 (默认: config/config.yaml)")
+    parser.add_argument("--debug", action="store_true",
+                        help="启用 DEBUG 日志级别")
+
+    subparsers = parser.add_subparsers(dest="command", help="可用命令")
+
+    p_ingest = subparsers.add_parser("ingest", help="摄入音频到知识库")
+    p_ingest.add_argument("--input", "-i", required=True, help="音频文件路径")
+    p_ingest.add_argument("--force", "-f", action="store_true", help="强制重新摄入（覆盖已有数据）")
+
+    p_gen = subparsers.add_parser("generate", help="根据话题生成文案")
+    p_gen.add_argument("--topic", "-t", required=True, help="话题/关键词")
+    p_gen.add_argument("--style", "-s", default=None, help="文案风格（可选）")
+
+    p_polish = subparsers.add_parser("polish", help="润色已有文案")
+    p_polish.add_argument("--input", "-i", required=True, help="文案文件路径")
+    p_polish.add_argument("--feedback", "-f", required=True, help="修改意见")
+
+    subparsers.add_parser("status", help="查看知识库状态")
+
+    p_clear = subparsers.add_parser("clear", help="清空知识库")
+    p_clear.add_argument("--confirm", action="store_true", help="确认清空")
+
+    p_nuke = subparsers.add_parser("nuke", help="清除所有数据（知识库+转写+文案+日志）")
+    p_nuke.add_argument("--confirm", action="store_true", help="确认清除所有数据")
+
+    args = parser.parse_args()
+
+    if args.command is None:
+        parser.print_help()
+        return
+
+    commands = {
+        "ingest": cmd_ingest,
+        "generate": cmd_generate,
+        "polish": cmd_polish,
+        "status": cmd_status,
+        "clear": cmd_clear,
+        "nuke": cmd_nuke,
+    }
+    commands[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude
+.claude/
+
+# Test
+.pytest_cache/
+.coverage
+
+# Project data (runtime)
+data/vectordb/
+outputs/
+logs/
+
+# Audio / media files
+*.mp3
+*.wav
+*.mp4
+*.m4a
+*.ogg
+*.flac
+*.aac
+*.opus
+
+# Config with secrets
+config/config.yaml
+
+# Shim
+pyaudioop.py
