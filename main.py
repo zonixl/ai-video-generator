@@ -175,6 +175,10 @@ def cmd_produce(args):
         fps=args.fps,
         use_tts=args.use_tts,
         reuse_assets=args.reuse_assets,
+        job_id=args.job_id,
+        from_plan=args.from_plan,
+        step=args.step,
+        force=args.force,
     )
     logger.info("produce completed: %s", result.video_path)
 
@@ -295,13 +299,22 @@ def main():
     p_polish.add_argument("--feedback", "-f", required=True, help="修改意见")
 
     p_produce = subparsers.add_parser("produce", help="根据文案生成图片动画视频")
-    p_produce.add_argument("--script", "-s", required=True, help="文案 Markdown/TXT 文件路径")
+    p_produce.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
     p_produce.add_argument("--output", "-o", default=None, help="输出 mp4 路径（可选）")
     p_produce.add_argument("--title", default=None, help="视频标题（可选，默认从文案标题提取）")
     p_produce.add_argument("--style", default="clean", help="画面风格描述")
     p_produce.add_argument("--width", type=int, default=None, help="视频宽度，默认读取配置")
     p_produce.add_argument("--height", type=int, default=None, help="视频高度，默认读取配置")
     p_produce.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
+    p_produce.add_argument("--job-id", default=None, help="复用或继续某个 produce 任务")
+    p_produce.add_argument("--from-plan", default=None, help="从已有 video_plan.json 继续执行")
+    p_produce.add_argument(
+        "--step",
+        choices=("all", "plan", "tts", "images", "clips", "subtitles", "compose"),
+        default="all",
+        help="只执行某个阶段，默认 all",
+    )
+    p_produce.add_argument("--force", action="store_true", help="强制重做当前 step 对应产物")
     p_produce.add_argument("--tts", dest="use_tts", action="store_true", help="启用 edge-tts 配音")
     p_produce.add_argument("--no-tts", dest="use_tts", action="store_false", help="禁用配音")
     p_produce.set_defaults(use_tts=False)

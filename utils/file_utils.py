@@ -27,6 +27,11 @@ def write_json(file_path: str | Path, data: dict | list):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def read_json(file_path: str | Path) -> dict | list:
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def save_transcript(text: str, source_file: str | Path, output_dir: str | Path) -> Path:
     """保存转写文本，自动加时间戳防止覆盖。"""
     source_name = Path(source_file).stem

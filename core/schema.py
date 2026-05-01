@@ -91,3 +91,27 @@ def to_dict(value: Any) -> Any:
         return {key: to_dict(item) for key, item in value.items()}
     return value
 
+
+def scene_from_dict(data: dict[str, Any]) -> Scene:
+    return Scene(
+        index=int(data["index"]),
+        subtitle=str(data["subtitle"]),
+        narration=str(data.get("narration", data["subtitle"])),
+        visual=str(data.get("visual", "")),
+        image_prompt=str(data.get("image_prompt", "")),
+        duration=float(data["duration"]),
+        animation=str(data.get("animation", "zoom_in")),
+    )
+
+
+def video_plan_from_dict(data: dict[str, Any]) -> VideoPlan:
+    return VideoPlan(
+        title=str(data["title"]),
+        script=str(data.get("script", "")),
+        scenes=[scene_from_dict(item) for item in data.get("scenes", [])],
+        width=int(data.get("width", 1080)),
+        height=int(data.get("height", 1920)),
+        fps=int(data.get("fps", 30)),
+        style=str(data.get("style", "clean")),
+    )
+

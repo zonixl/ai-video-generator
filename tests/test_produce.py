@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from core.schema import ClipAsset, ImageAsset
+from core.schema import AudioAsset, ClipAsset, ImageAsset
 
 
 def test_rule_based_scene_splitter_creates_plan():
@@ -92,6 +92,57 @@ def test_produce_pipeline_logs_progress(tmp_path, caplog):
     assert "ProducePipeline DONE" in log_text
 
 
+def test_produce_pipeline_reuses_existing_job_assets(tmp_path):
+    from pipeline.produce import ProducePipeline
+
+    script_path = tmp_path / "script.md"
+    script_path.write_text("# 测试视频\n这是第一段文案。这里说明第二个观点。", encoding="utf-8")
+
+    config = FakeProduceConfig(tmp_path)
+    provider = CountingImageProvider()
+    pipeline = ProducePipeline(config, image_provider=provider, renderer=FakeRenderer())
+
+    first = pipeline.run(str(script_path), job_id="video_fixed", use_tts=False)
+    assert provider.calls > 0
+
+    provider.calls = 0
+    second = pipeline.run(
+        job_id="video_fixed",
+        step="images",
+        reuse_assets=True,
+    )
+
+    assert second.job_id == first.job_id
+    assert provider.calls == 0
+    assert second.image_paths == first.image_paths
+
+
+def test_produce_pipeline_can_add_tts_to_existing_job(tmp_path):
+    from pipeline.produce import ProducePipeline
+    from utils.file_utils import read_json
+
+    script_path = tmp_path / "script.md"
+    script_path.write_text("# 测试视频\n这是第一段文案。这里说明第二个观点。", encoding="utf-8")
+
+    config = FakeProduceConfig(tmp_path)
+    pipeline = ProducePipeline(
+        config,
+        image_provider=FakeImageProvider(),
+        renderer=FakeRenderer(),
+        tts_provider=FakeTTSProvider(duration=4.0),
+    )
+
+    pipeline.run(str(script_path), job_id="video_audio", use_tts=False)
+    result = pipeline.run(job_id="video_audio", step="tts", use_tts=True, force=True)
+
+    assert result.audio_path is not None
+    assert Path(result.audio_path).exists()
+    assert Path(result.audio_path).parent == config.output_videos_dir
+    plan_data = read_json(result.plan_path)
+    total_duration = sum(scene["duration"] for scene in plan_data["scenes"])
+    assert round(total_duration, 1) == 4.0
+
+
 class FakeProduceConfig:
     def __init__(self, root: Path):
         self.output_audio_dir = root / "audio"
@@ -118,6 +169,26 @@ class FakeImageProvider:
         path = output_dir / f"scene_{scene.index:03d}.png"
         path.write_bytes(b"fake image")
         return ImageAsset(scene.index, str(path), provider="fake", prompt=scene.image_prompt)
+
+
+class CountingImageProvider(FakeImageProvider):
+    def __init__(self):
+        self.calls = 0
+
+    def generate(self, scene, output_dir, *, width: int, height: int) -> ImageAsset:
+        self.calls += 1
+        return super().generate(scene, output_dir, width=width, height=height)
+
+
+class FakeTTSProvider:
+    def __init__(self, duration: float):
+        self.duration = duration
+
+    def synthesize(self, text: str, output_path, *, voice: str, rate: float = 1.0) -> AudioAsset:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"fake audio")
+        return AudioAsset(str(output_path), self.duration, provider="fake", voice=voice)
 
 
 class FakeRenderer:

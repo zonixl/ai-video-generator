@@ -1,30 +1,35 @@
-.PHONY: help install ingest generate polish status clear test
-.PHONY: debug-ingest debug-generate debug-polish
-
 help:
-	@echo ============================================
-	@echo  AI Content Pipeline - Commands
-	@echo ============================================
-	@echo ""
-	@echo "  make install           install deps"
-	@echo "  make ingest ARGS=...   audio -> knowledge base"
-	@echo "  make generate ARGS=... topic -> script"
-	@echo "  make polish ARGS=...   polish a script"
-	@echo "  make status            view knowledge base"
-	@echo "  make clear ARGS=...    clear knowledge base"
-	@echo "  make nuke              clear ALL data"
-	@echo "  make test              run tests"
-	@echo ""
-	@echo "  Debug mode (detailed logs):"
-	@echo "  make debug-ingest ARGS='-i test.mp3'"
-	@echo "  make debug-generate ARGS='-t AI_topic'"
-	@echo ""
-	@echo "  Examples:"
-	@echo "    make ingest ARGS=-i test.mp3"
-	@echo "    make generate ARGS=-t AI_topic"
-	@echo "    make polish ARGS='-i ./outputs/scripts/创业_20260501_170401.md -f xxx'"
-	@echo "    make clear ARGS=--confirm"
-	@echo "    make nuke"
+	@cmd /C echo ============================================
+	@cmd /C echo  AI Content Pipeline - Commands
+	@cmd /C echo ============================================
+	@cmd /C echo.
+	@cmd /C echo   make install           install deps
+	@cmd /C echo   make ingest ARGS=...   audio -^> knowledge base
+	@cmd /C echo   make generate ARGS=... topic -^> script
+	@cmd /C echo   make polish ARGS=...   polish a script
+	@cmd /C echo   make produce ARGS=...  script -^> video
+	@cmd /C echo   make produce-tts JOB=... add TTS and rebuild existing video job
+	@cmd /C echo   make produce-step JOB=... STEP=... rerun one produce step
+	@cmd /C echo   make status            view knowledge base
+	@cmd /C echo   make clear ARGS=...    clear knowledge base
+	@cmd /C echo   make nuke              clear ALL data
+	@cmd /C echo   make test              run tests
+	@cmd /C echo.
+	@cmd /C echo   Debug mode (detailed logs):
+	@cmd /C echo   make debug-ingest ARGS='-i test.mp3'
+	@cmd /C echo   make debug-generate ARGS='-t AI_topic'
+	@cmd /C echo   make debug-produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1'
+	@cmd /C echo.
+	@cmd /C echo   Examples:
+	@cmd /C echo     make ingest ARGS=-i test.mp3
+	@cmd /C echo     make generate ARGS=-t AI_topic
+	@cmd /C echo     make polish ARGS='-i ./outputs/scripts/demo.md -f xxx'
+	@cmd /C echo     make produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1 --no-tts'
+	@cmd /C echo     make produce-tts JOB=demo1
+	@cmd /C echo     make produce-step JOB=demo1 STEP=clips ARGS=--force
+	@cmd /C echo     make produce-step JOB=demo1 STEP=compose ARGS='--tts --force'
+	@cmd /C echo     make clear ARGS=--confirm
+	@cmd /C echo     make nuke
 
 install:
 	uv sync
@@ -37,6 +42,17 @@ generate:
 
 polish:
 	uv run python main.py polish $(ARGS)
+
+produce:
+	uv run python main.py produce $(ARGS)
+
+produce-tts:
+	uv run python main.py produce --job-id $(JOB) --step tts --tts --force $(ARGS)
+	uv run python main.py produce --job-id $(JOB) --step clips --force $(ARGS)
+	uv run python main.py produce --job-id $(JOB) --step compose --tts --force $(ARGS)
+
+produce-step:
+	uv run python main.py produce --job-id $(JOB) --step $(STEP) $(ARGS)
 
 status:
 	uv run python main.py status
@@ -62,3 +78,6 @@ debug-generate:
 
 debug-polish:
 	uv run python main.py --debug polish $(ARGS)
+
+debug-produce:
+	uv run python main.py --debug produce $(ARGS)
