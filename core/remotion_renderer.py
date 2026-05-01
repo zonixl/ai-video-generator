@@ -51,3 +51,39 @@ class RemotionRenderer:
         logger.info("Remotion render done: %s", output_path)
         return str(output_path)
 
+    def render_still(self, input_path: str | Path, output_path: str | Path, frame: int) -> str:
+        input_path = Path(input_path).resolve()
+        output_path = Path(output_path).resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path = output_path.with_suffix(".remotion.log")
+
+        npx = shutil.which("npx") or shutil.which("npx.cmd") or "npx"
+        command = [
+            npx,
+            "remotion",
+            "still",
+            "src/index.ts",
+            "DiagramVideo",
+            str(output_path),
+            f"--frame={int(frame)}",
+            f"--props={input_path}",
+        ]
+        logger.info("Remotion still start: frame=%d input=%s output=%s", frame, input_path, output_path)
+        result = subprocess.run(
+            command,
+            cwd=self._project_dir,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
+        log_path.write_text(
+            f"$ {' '.join(command)}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}",
+            encoding="utf-8",
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Remotion still failed ({result.returncode}). See log: {log_path}")
+        logger.info("Remotion still done: %s", output_path)
+        return str(output_path)
+

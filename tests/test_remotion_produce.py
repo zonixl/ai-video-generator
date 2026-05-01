@@ -88,6 +88,8 @@ class FakeConfig:
         self.video_height = 1280
         self.video_fps = 24
         self.remotion_project_dir = root / "remotion_project"
+        self.remotion_refine_enabled = False
+        self.remotion_refine_rounds = 2
 
 
 class FakePlanner:

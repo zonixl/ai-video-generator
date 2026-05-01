@@ -10,6 +10,7 @@ help:
 	@cmd /C echo   make produce ARGS=...  script -^> video
 	@cmd /C echo   make produce-remotion ARGS=... script -^> Remotion video
 	@cmd /C echo   make remotion-plan ARGS=... generate Remotion input JSON
+	@cmd /C echo   make remotion-refine JOB=... vision review and patch Remotion JSON
 	@cmd /C echo   make remotion-render JOB=... render existing Remotion job
 	@cmd /C echo   make remotion-preview     open Remotion Studio
 	@cmd /C echo   make remotion-showcase    render RVE template showcase
@@ -33,6 +34,7 @@ help:
 	@cmd /C echo     make produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1 --no-tts'
 	@cmd /C echo     make produce-remotion ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion'
 	@cmd /C echo     make remotion-plan ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --force'
+	@cmd /C echo     make remotion-refine JOB=demo-remotion
 	@cmd /C echo     make remotion-render JOB=demo-remotion
 	@cmd /C echo     make remotion-preview
 	@cmd /C echo     make remotion-showcase
@@ -64,6 +66,12 @@ produce-remotion:
 
 remotion-plan:
 	uv run python main.py produce-remotion --step plan $(ARGS)
+
+remotion-refine:
+	uv run python main.py produce-remotion --job-id $(JOB) --step refine $(ARGS)
+
+produce-remotion-refined:
+	uv run python main.py produce-remotion --refine $(ARGS)
 
 remotion-render:
 	uv run python main.py produce-remotion --job-id $(JOB) --step render $(ARGS)

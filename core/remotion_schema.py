@@ -16,6 +16,7 @@ ComponentSlot = Literal["title", "left_top", "left_bottom", "right_top", "right_
 ComponentVariant = Literal["default", "primary", "success", "danger", "warning", "muted"]
 MotionType = Literal["fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"]
 IconName = Literal["sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers", "code", "settings"]
+SceneLayout = Literal["auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"]
 
 
 @dataclass
@@ -35,6 +36,7 @@ class RemotionSceneSpec:
     duration: float
     template: Literal["basic_diagram"] = "basic_diagram"
     theme: Literal["warm_grid", "dark_grid", "clean"] = "warm_grid"
+    layout: SceneLayout | str = "auto"
     headline: str = ""
     subtitle: str = ""
     components: list[RemotionComponentSpec] = field(default_factory=list)
@@ -104,6 +106,9 @@ def scene_from_dict(data: dict[str, Any], fallback_index: int) -> RemotionSceneS
         duration=float(data.get("duration", 5.0)),
         template="basic_diagram",
         theme=_choice(data.get("theme"), {"warm_grid", "dark_grid", "clean"}, "warm_grid"),
+        layout=_choice(data.get("layout"), {
+            "auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"
+        }, "auto"),
         headline=str(data.get("headline") or data.get("title") or f"Scene {fallback_index}"),
         subtitle=str(data.get("subtitle", "")),
         components=components,

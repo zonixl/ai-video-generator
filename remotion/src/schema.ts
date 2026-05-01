@@ -46,6 +46,13 @@ export type ComponentSlot =
   | 'bottom'
   | 'caption';
 export type MotionType = 'fade_in' | 'slide_in' | 'pop' | 'draw' | 'strike' | 'pulse' | 'none';
+export type SceneLayout =
+  | 'auto'
+  | 'two_column_compare'
+  | 'center_focus'
+  | 'top_title_bottom_chart'
+  | 'timeline_vertical'
+  | 'quote_focus';
 
 export interface ComponentSpec {
   id: string;
@@ -62,6 +69,7 @@ export interface RemotionSceneSpec {
   duration: number;
   template: 'basic_diagram';
   theme: 'warm_grid' | 'dark_grid' | 'clean';
+  layout?: SceneLayout;
   headline: string;
   subtitle?: string;
   components: ComponentSpec[];

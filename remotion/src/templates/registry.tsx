@@ -43,15 +43,18 @@ export const renderRegistryComponent = ({
   component,
   frame,
   index,
+  fps,
   style
 }: {
   component: ComponentSpec;
   frame: number;
   index: number;
+  fps: number;
   style: React.CSSProperties;
 }) => {
   if (component.type === 'arrow') {
-    const progress = interpolate(frame, [18 + index * 8, 38 + index * 8], [0, 1], {
+    const start = (0.85 + index * 0.32) * fps;
+    const progress = interpolate(frame, [start, start + fps * 0.75], [0, 1], {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp'
     });

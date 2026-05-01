@@ -208,6 +208,14 @@ PLAN_REMOTION_SCENE = """## 任务
 ## 可用模板
 - basic_diagram
 
+## 可用 layout
+- auto：默认自动布局，系统会二次归一化避免重叠
+- two_column_compare：左右对比，中间可放箭头
+- center_focus：一个核心组件居中强调
+- top_title_bottom_chart：顶部放图表/数据，底部放解释
+- timeline_vertical：流程、步骤、列表
+- quote_focus：观点、引用、下三分之一说明
+
 ## 可用组件 type
 - title：标题文本
 - card：信息卡片
@@ -276,17 +284,17 @@ PLAN_REMOTION_SCENE = """## 任务
 
 ## 规则
 1. 禁止人物镜头，禁止写实人物，优先用图示、卡片、箭头、标签、指标、步骤、计数器、进度条、列表、引用卡、图表模板。
-2. 只能使用上面列出的 type、slot、variant、motion、icon。
-3. 组件数量控制在 3-6 个。
-4. 文案要短，卡片文字尽量 2-10 个字。
-5. 每个 card、badge、metric、step 尽量选择一个 icon，arrow 可以不选 icon。
-6. 如果表达“替换、否定、废弃”，可用 danger + strike + x。
-7. 如果表达“结果、目标、升级”，可用 success + pop + check/target。
-8. 如果表达流程，优先使用 progress_steps、list 或 step，icon 可用 workflow、layers、settings、code。
-9. 如果表达数据、效率、成本、比例，优先使用 bar_chart、line_chart、comparison、donut_chart、circular_progress、stat_counter、metric 或 progress。
-10. 如果表达强调观点，优先使用 highlight_text、typewriter、quote 或 lower_third。
-11. 每个 scene 最多使用 1 个复杂模板：bar_chart、line_chart、donut_chart、comparison、circular_progress、progress_steps、notification。
-12. background_pattern 只能作为背景氛围组件，每个 scene 最多一个。
+2. 只能使用上面列出的 layout、type、slot、variant、motion、icon。
+3. 必须选择一个 layout。slot 只是语义参考，最终布局会由系统归一化。
+4. 组件数量控制在 2-4 个，复杂图表模板最多 1 个，避免遮挡。
+5. 文案要短，卡片文字尽量 2-10 个字。
+6. 每个 card、badge、metric、step 尽量选择一个 icon，arrow 可以不选 icon。
+7. 如果表达“替换、否定、废弃”，可用 danger + strike + x。
+8. 如果表达“结果、目标、升级”，可用 success + pop + check/target。
+9. 如果表达流程，优先使用 timeline_vertical + progress_steps/list/step。
+10. 如果表达数据、效率、成本、比例，优先使用 top_title_bottom_chart + 一个图表模板。
+11. 如果表达强调观点，优先使用 quote_focus + highlight_text/typewriter/quote/lower_third。
+12. 不要让多个大组件竞争同一区域，不要输出长段文字。
 13. 输出严格 JSON 对象，不要包含 ```json。
 
 ## 输出 JSON 格式
@@ -295,6 +303,7 @@ PLAN_REMOTION_SCENE = """## 任务
   "duration": 5.0,
   "template": "basic_diagram",
   "theme": "warm_grid",
+  "layout": "two_column_compare",
   "headline": "这一镜标题",
   "subtitle": "这一镜字幕",
   "components": [
@@ -315,6 +324,66 @@ PLAN_REMOTION_SCENE = """## 任务
 - 时长：{duration}
 - 字幕：{subtitle}
 - 画面描述：{visual}
+
+请只输出 JSON："""
+
+SYSTEM_REMOTION_REVIEWER = (
+    "你是一个短视频画面质检师。你要根据 Remotion 渲染关键帧检查视觉问题，"
+    "只能输出严格 JSON，不输出 Markdown，不解释。"
+)
+
+REVIEW_REMOTION_FRAMES = """## 任务
+审查这些 Remotion 视频关键帧，判断是否存在画面拥挤、组件遮挡、文字溢出、乱码、标题/字幕被挡、复杂组件过多或动画阶段导致的重叠。
+
+## 当前 Remotion DSL
+{spec_json}
+
+## 允许输出的 patch 字段
+- layout：只能是 auto / two_column_compare / center_focus / top_title_bottom_chart / timeline_vertical / quote_focus
+- theme：只能是 warm_grid / dark_grid / clean
+- remove_component_ids：删除低价值组件 ID 列表
+- replace_component_type：按组件 ID 替换为受控组件 type
+- shorten_text：按组件 ID 缩短 text
+- set_motion：按组件 ID 修改 motion
+- set_variant：按组件 ID 修改 variant
+- limit_components：限制该 scene 保留的组件数量，1-4
+
+## 禁止
+1. 禁止输出 React/CSS/坐标/文件路径。
+2. 禁止新增未知组件 type。
+3. 禁止要求人工查看。
+4. 禁止输出 Markdown 代码块。
+
+## 判断标准
+1. 组件不能重叠，不能遮挡标题和字幕。
+2. 字幕、标题、卡片文字必须可读。
+3. 单个 scene 不应塞太多组件。
+4. 图表、进度条、通知堆叠这类复杂组件通常每镜最多一个。
+5. 如果画面拥挤，优先删除低价值组件或切换 layout，而不是建议自由调整坐标。
+
+## 输出 JSON 格式
+{{
+  "pass": false,
+  "score": 72,
+  "issues": [
+    {{
+      "type": "overlap",
+      "severity": "high",
+      "scene_index": 1,
+      "reason": "底部组件与图表距离过近",
+      "suggestion": "删除低价值组件并切换为 center_focus"
+    }}
+  ],
+  "patches": [
+    {{
+      "scene_index": 1,
+      "layout": "center_focus",
+      "remove_component_ids": ["notice"],
+      "shorten_text": {{"lower": "趋势上升|保留一个图表"}},
+      "limit_components": 2
+    }}
+  ]
+}}
 
 请只输出 JSON："""
 

@@ -23,6 +23,16 @@ def _resolve_env_vars(value: str) -> str:
     return pattern.sub(_replacer, value)
 
 
+def _resolve_config_value(value):
+    if isinstance(value, str):
+        return _resolve_env_vars(value)
+    if isinstance(value, dict):
+        return {key: _resolve_config_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_resolve_config_value(item) for item in value]
+    return value
+
+
 class Settings:
     """从 YAML 文件加载配置，扁平化为一级属性。环境变量 AI_<KEY> 可覆盖。"""
 
@@ -53,9 +63,9 @@ class Settings:
                     elif isinstance(val, float):
                         final_val = float(env_val)
                     else:
-                        final_val = _resolve_env_vars(env_val)
+                        final_val = _resolve_config_value(env_val)
                 else:
-                    final_val = _resolve_env_vars(val)
+                    final_val = _resolve_config_value(val)
                 self._flat[f"{section}_{key}"] = final_val
 
     def _get(self, key: str, default=None):
@@ -195,6 +205,14 @@ class Settings:
     def remotion_planner_instance(self) -> str: return self._get("remotion_planner_instance", "remotion_designer")
     @property
     def remotion_project_dir(self) -> Path:     return self._resolve_path("remotion_project_dir")
+    @property
+    def remotion_refine_enabled(self) -> bool:  return self._get("remotion_refine_enabled", False)
+    @property
+    def remotion_refine_rounds(self) -> int:    return self._get("remotion_refine_rounds", 2)
+    @property
+    def remotion_reviewer_instance(self) -> str:return self._get("remotion_reviewer_instance", "remotion_reviewer")
+    @property
+    def remotion_review_frames_per_scene(self) -> int: return self._get("remotion_review_frames_per_scene", 3)
 
     # ---- logging 段 ----
     @property
