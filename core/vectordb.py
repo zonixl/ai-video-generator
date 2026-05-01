@@ -1,10 +1,12 @@
 """向量数据库模块：ChromaDB 封装。"""
 
 import logging
+import threading
 from pathlib import Path
 import uuid
 
 logger = logging.getLogger(__name__)
+_write_lock = threading.Lock()
 
 
 class VectorStore:
@@ -45,12 +47,13 @@ class VectorStore:
         logger.debug("Embedding %d texts for vector store...", len(texts))
         embeddings = self._embedder.embed(texts)
         logger.debug("Adding %d docs to collection...", len(texts))
-        self._collection.add(
-            ids=ids,
-            documents=texts,
-            embeddings=embeddings,
-            metadatas=metadatas,
-        )
+        with _write_lock:
+            self._collection.add(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings,
+                metadatas=metadatas,
+            )
         logger.info("Added %d documents to vectordb", len(ids))
         return ids
 
@@ -79,7 +82,8 @@ class VectorStore:
 
     def delete_by_ids(self, ids: list[str]) -> int:
         """按 ID 删除文档。"""
-        self._collection.delete(ids=ids)
+        with _write_lock:
+            self._collection.delete(ids=ids)
         logger.info("Deleted %d documents", len(ids))
         return len(ids)
 
@@ -87,7 +91,8 @@ class VectorStore:
         """按来源文件删除所有关联文档。"""
         results = self._collection.get(where={"source": source_file})
         if results["ids"]:
-            self._collection.delete(ids=results["ids"])
+            with _write_lock:
+                self._collection.delete(ids=results["ids"])
             logger.info("Deleted %d documents from source=%s", len(results["ids"]), source_file)
             return len(results["ids"])
         return 0
@@ -101,7 +106,8 @@ class VectorStore:
         """按文件 hash 删除所有关联文档。"""
         results = self._collection.get(where={"file_hash": file_hash})
         if results["ids"]:
-            self._collection.delete(ids=results["ids"])
+            with _write_lock:
+                self._collection.delete(ids=results["ids"])
             logger.info("Deleted %d documents from hash=%s", len(results["ids"]), file_hash)
             return len(results["ids"])
         return 0

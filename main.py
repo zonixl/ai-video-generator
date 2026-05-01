@@ -1,5 +1,9 @@
 """CLI 入口：AI内容生产系统。"""
 
+import os
+# 禁止 HuggingFace Hub 网络请求，只使用本地缓存
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
 import argparse
 import logging
 import sys
@@ -71,15 +75,22 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
     return GeneratePipeline(retriever, model_mgr, cfg)
 
 
+def _process_one(args_tuple: tuple) -> dict:
+    """处理单个文件（供线程池调用）。每次构建独立 pipeline 避免线程竞争。"""
+    audio_file, cfg, force = args_tuple
+    pipeline = build_ingest_pipeline(cfg)
+    return pipeline.run(str(audio_file), force=force)
+
+
 def cmd_ingest(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
-    pipeline = build_ingest_pipeline(cfg)
 
     input_path = Path(args.input)
     if input_path.is_dir():
-        # 批量模式：遍历文件夹中所有音频文件（跳过<10KB的碎片文件）
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from utils.file_utils import is_audio_file
+
         audio_files = sorted(
             f for f in input_path.rglob("*")
             if f.is_file() and is_audio_file(f) and f.stat().st_size > 10_000
@@ -87,23 +98,37 @@ def cmd_ingest(args):
         if not audio_files:
             logger.warning("No audio files found in: %s", input_path)
             return
-        logger.info("Batch ingest: %d audio files found in %s", len(audio_files), input_path)
+
+        workers = max(1, cfg.ingest_parallel_workers)
+        logger.info("Batch ingest: %d files, %d workers", len(audio_files), workers)
+
         ok, skip, fail = 0, 0, 0
-        for i, audio_file in enumerate(audio_files, 1):
-            logger.info("=" * 40)
-            logger.info("[%d/%d] %s", i, len(audio_files), audio_file.name)
-            try:
-                result = pipeline.run(str(audio_file), force=args.force)
-                if result.get("skipped"):
-                    skip += 1
-                else:
-                    ok += 1
-            except Exception as e:
-                logger.error("Failed: %s - %s", audio_file.name, e)
-                fail += 1
+        futures = {}
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            for audio_file in audio_files:
+                future = executor.submit(_process_one, (audio_file, cfg, args.force))
+                futures[future] = audio_file
+
+            for future in as_completed(futures):
+                audio_file = futures[future]
+                try:
+                    result = future.result()
+                    if result.get("skipped"):
+                        skip += 1
+                        logger.info("[%s] skipped (duplicate)", audio_file.name)
+                    else:
+                        ok += 1
+                        logger.info("[%s] ok (%d chunks, %d chars)",
+                                    audio_file.name, result["chunks"], result["restructured_chars"])
+                except Exception as e:
+                    fail += 1
+                    logger.error("[%s] FAILED: %s", audio_file.name, e)
+
         logger.info("Batch done: %d ok, %d skipped, %d failed, %d total",
                     ok, skip, fail, len(audio_files))
     else:
+        pipeline = build_ingest_pipeline(cfg)
         # 单文件模式
         result = pipeline.run(args.input, force=args.force)
         if result.get("skipped"):

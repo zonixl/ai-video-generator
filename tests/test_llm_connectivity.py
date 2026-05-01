@@ -1,5 +1,8 @@
 """LLM 连通性测试：逐个验证配置中的每个 model instance 是否可用。"""
 
+import os
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))

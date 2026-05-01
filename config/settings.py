@@ -98,6 +98,8 @@ class Settings:
     def retrieval_mmr_lambda(self) -> float:    return self._get("retrieval_mmr_lambda")
 
     @property
+    def ingest_parallel_workers(self) -> int:   return self._get("ingest_parallel_workers", 2)
+    @property
     def audio_silence_threshold(self) -> int:   return self._get("audio_silence_threshold")
     @property
     def audio_min_silence_duration(self) -> float: return self._get("audio_min_silence_duration")
