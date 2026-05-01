@@ -1,5 +1,7 @@
 """文件工具：读写、hash、格式校验。"""
 
+from __future__ import annotations
+
 from pathlib import Path
 from datetime import datetime
 import hashlib

@@ -119,6 +119,46 @@ class Settings:
     def output_audio_dir(self) -> Path:         return self._resolve_path("output_audio_dir")
     @property
     def output_images_dir(self) -> Path:        return self._resolve_path("output_images_dir")
+    @property
+    def output_videos_dir(self) -> Path:        return self._resolve_path("output_videos_dir")
+    @property
+    def output_clips_dir(self) -> Path:         return self._resolve_path("output_clips_dir")
+    @property
+    def output_subtitles_dir(self) -> Path:     return self._resolve_path("output_subtitles_dir")
+    @property
+    def output_plans_dir(self) -> Path:         return self._resolve_path("output_plans_dir")
+
+    # ---- tts 段 ----
+    @property
+    def tts_engine(self) -> str:                return self._get("tts_engine", "edge-tts")
+    @property
+    def tts_voice(self) -> str:                 return self._get("tts_voice", "zh-CN-XiaoxiaoNeural")
+    @property
+    def tts_speed(self) -> float:               return self._get("tts_speed", 1.0)
+
+    # ---- video 段 ----
+    @property
+    def video_fps(self) -> int:                 return self._get("video_fps", 30)
+    @property
+    def video_width(self) -> int:
+        resolution = self._get("video_resolution", [1080, 1920])
+        return int(resolution[0])
+    @property
+    def video_height(self) -> int:
+        resolution = self._get("video_resolution", [1080, 1920])
+        return int(resolution[1])
+    @property
+    def video_transition(self) -> str:          return self._get("video_transition", "fade")
+    @property
+    def video_subtitle_font(self) -> str:       return self._get("video_subtitle_font", "SourceHanSans")
+    @property
+    def video_min_scene_duration(self) -> float:return self._get("video_min_scene_duration", 5.0)
+    @property
+    def video_max_scene_duration(self) -> float:return self._get("video_max_scene_duration", 8.0)
+    @property
+    def video_chars_per_second(self) -> float:  return self._get("video_chars_per_second", 4.5)
+    @property
+    def video_subtitle_max_chars(self) -> int:  return self._get("video_subtitle_max_chars", 20)
 
     # ---- logging 段 ----
     @property

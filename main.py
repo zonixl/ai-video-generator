@@ -20,6 +20,7 @@ from core.vectordb import VectorStore
 from core.retriever import Retriever
 from pipeline.ingest import IngestPipeline
 from pipeline.generate import GeneratePipeline
+from pipeline.produce import ProducePipeline
 
 logger = logging.getLogger("main")
 
@@ -73,6 +74,10 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
         mmr_lambda=cfg.retrieval_mmr_lambda,
     )
     return GeneratePipeline(retriever, model_mgr, cfg)
+
+
+def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
+    return ProducePipeline(cfg)
 
 
 def _process_one(args_tuple: tuple) -> dict:
@@ -154,6 +159,24 @@ def cmd_polish(args):
     pipeline = build_generate_pipeline(cfg)
     polished = pipeline.polish_to_file(args.input, args.feedback)
     logger.info("polish completed: %d chars", len(polished))
+
+
+def cmd_produce(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_produce_pipeline(cfg)
+    result = pipeline.run(
+        args.script,
+        output_path=args.output,
+        title=args.title,
+        style=args.style,
+        width=args.width,
+        height=args.height,
+        fps=args.fps,
+        use_tts=args.use_tts,
+        reuse_assets=args.reuse_assets,
+    )
+    logger.info("produce completed: %s", result.video_path)
 
 
 def cmd_status(args):
@@ -271,6 +294,19 @@ def main():
     p_polish.add_argument("--input", "-i", required=True, help="文案文件路径")
     p_polish.add_argument("--feedback", "-f", required=True, help="修改意见")
 
+    p_produce = subparsers.add_parser("produce", help="根据文案生成图片动画视频")
+    p_produce.add_argument("--script", "-s", required=True, help="文案 Markdown/TXT 文件路径")
+    p_produce.add_argument("--output", "-o", default=None, help="输出 mp4 路径（可选）")
+    p_produce.add_argument("--title", default=None, help="视频标题（可选，默认从文案标题提取）")
+    p_produce.add_argument("--style", default="clean", help="画面风格描述")
+    p_produce.add_argument("--width", type=int, default=None, help="视频宽度，默认读取配置")
+    p_produce.add_argument("--height", type=int, default=None, help="视频高度，默认读取配置")
+    p_produce.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
+    p_produce.add_argument("--tts", dest="use_tts", action="store_true", help="启用 edge-tts 配音")
+    p_produce.add_argument("--no-tts", dest="use_tts", action="store_false", help="禁用配音")
+    p_produce.set_defaults(use_tts=False)
+    p_produce.add_argument("--reuse-assets", action="store_true", help="复用已存在的图片和片段")
+
     subparsers.add_parser("status", help="查看知识库状态")
 
     p_clear = subparsers.add_parser("clear", help="清空知识库")
@@ -289,6 +325,7 @@ def main():
         "ingest": cmd_ingest,
         "generate": cmd_generate,
         "polish": cmd_polish,
+        "produce": cmd_produce,
         "status": cmd_status,
         "clear": cmd_clear,
         "nuke": cmd_nuke,
