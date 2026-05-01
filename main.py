@@ -76,9 +76,8 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
 
 
 def _process_one(args_tuple: tuple) -> dict:
-    """处理单个文件（供线程池调用）。每次构建独立 pipeline 避免线程竞争。"""
-    audio_file, cfg, force = args_tuple
-    pipeline = build_ingest_pipeline(cfg)
+    """处理单个文件（供线程池调用）。复用同一个 pipeline 实例。"""
+    audio_file, pipeline, force = args_tuple
     return pipeline.run(str(audio_file), force=force)
 
 
@@ -102,12 +101,14 @@ def cmd_ingest(args):
         workers = max(1, cfg.ingest_parallel_workers)
         logger.info("Batch ingest: %d files, %d workers", len(audio_files), workers)
 
+        pipeline = build_ingest_pipeline(cfg)  # 只建一次，多线程复用
+
         ok, skip, fail = 0, 0, 0
         futures = {}
 
         with ThreadPoolExecutor(max_workers=workers) as executor:
             for audio_file in audio_files:
-                future = executor.submit(_process_one, (audio_file, cfg, args.force))
+                future = executor.submit(_process_one, (audio_file, pipeline, args.force))
                 futures[future] = audio_file
 
             for future in as_completed(futures):
