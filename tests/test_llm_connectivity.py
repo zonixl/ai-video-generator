@@ -32,7 +32,7 @@ def test_all():
     for name in instances:
         inst = cfg.models_instances[name]
         provider = inst["provider"]
-        model = "deepseek-v4-pro"
+        model = inst["model"]
         logger.info("[%s] provider=%s model=%s testing ...", name, provider, model)
 
         t0 = time.time()

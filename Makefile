@@ -10,8 +10,10 @@ help:
 	@cmd /C echo   make produce ARGS=...  script -^> video
 	@cmd /C echo   make produce-remotion ARGS=... script -^> Remotion video
 	@cmd /C echo   make remotion-plan ARGS=... generate Remotion input JSON
+	@cmd /C echo   make remotion-tts JOB=...   add TTS audio + sync durations
 	@cmd /C echo   make remotion-refine JOB=... vision review and patch Remotion JSON
 	@cmd /C echo   make remotion-render JOB=... render existing Remotion job
+	@cmd /C echo   make review-video VIDEO=... review generated mp4 with vision model
 	@cmd /C echo   make remotion-preview     open Remotion Studio
 	@cmd /C echo   make remotion-showcase    render RVE template showcase
 	@cmd /C echo   make remotion-component-showcase render base component showcase
@@ -32,10 +34,11 @@ help:
 	@cmd /C echo     make generate ARGS=-t AI_topic
 	@cmd /C echo     make polish ARGS='-i ./outputs/scripts/demo.md -f xxx'
 	@cmd /C echo     make produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1 --no-tts'
-	@cmd /C echo     make produce-remotion ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion'
+	@cmd /C echo     make produce-remotion ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --tts'
 	@cmd /C echo     make remotion-plan ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --force'
 	@cmd /C echo     make remotion-refine JOB=demo-remotion
 	@cmd /C echo     make remotion-render JOB=demo-remotion
+	@cmd /C echo     make review-video VIDEO=outputs/videos/demo.mp4
 	@cmd /C echo     make remotion-preview
 	@cmd /C echo     make remotion-showcase
 	@cmd /C echo     make remotion-component-showcase
@@ -67,6 +70,9 @@ produce-remotion:
 remotion-plan:
 	uv run python main.py produce-remotion --step plan $(ARGS)
 
+remotion-tts:
+	uv run python main.py produce-remotion --job-id $(JOB) --step tts --tts --force $(ARGS)
+
 remotion-refine:
 	uv run python main.py produce-remotion --job-id $(JOB) --step refine $(ARGS)
 
@@ -75,6 +81,9 @@ produce-remotion-refined:
 
 remotion-render:
 	uv run python main.py produce-remotion --job-id $(JOB) --step render $(ARGS)
+
+review-video:
+	uv run python main.py review-video --video $(VIDEO) $(ARGS)
 
 remotion-preview:
 	@cmd /C "cd remotion && npm run preview"

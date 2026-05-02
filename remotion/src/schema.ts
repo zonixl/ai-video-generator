@@ -81,4 +81,5 @@ export interface RemotionVideoSpec {
   height: number;
   fps: number;
   scenes: RemotionSceneSpec[];
+  audio_src?: string;
 }

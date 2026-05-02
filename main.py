@@ -20,10 +20,12 @@ from core.vectordb import VectorStore
 from core.retriever import Retriever
 from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
 from core.image_provider import ArkSeedreamImageProvider, PlaceholderImageProvider
+from core.tts import EdgeTTSProvider, iFLYTEKProvider
 from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
 from core.remotion_renderer import RemotionRenderer
 from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
+from core.video_reviewer import VideoReviewer
 from core.vision_provider import OpenAICompatibleVisionProvider
 from pipeline.ingest import IngestPipeline
 from pipeline.generate import GeneratePipeline
@@ -84,6 +86,18 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
     return GeneratePipeline(retriever, model_mgr, cfg)
 
 
+def build_tts_provider(cfg: Settings):
+    """根据配置创建 TTS Provider。"""
+    if cfg.tts_engine == "iflytek":
+        return iFLYTEKProvider(
+            host=cfg.tts_iflytek_host,
+            app_id=cfg.tts_iflytek_app_id,
+            api_key=cfg.tts_iflytek_api_key,
+            api_secret=cfg.tts_iflytek_api_secret,
+        )
+    return EdgeTTSProvider()
+
+
 def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
     rule_splitter = RuleBasedSceneSplitter(
         min_scene_duration=cfg.video_min_scene_duration,
@@ -124,6 +138,7 @@ def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
         splitter=splitter,
         image_provider=image_provider,
         animation_planner=animation_planner,
+        tts_provider=build_tts_provider(cfg),
     )
 
 
@@ -156,6 +171,7 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
         planner=planner,
         renderer=renderer,
         refiner=refiner,
+        tts_provider=build_tts_provider(cfg),
     )
 
 
@@ -277,11 +293,35 @@ def cmd_produce_remotion(args):
         fps=args.fps,
         step=args.step,
         force=args.force,
+        use_tts=args.tts,
         refine=args.refine,
         refine_rounds=args.refine_rounds,
         review_only=args.review_only,
     )
     logger.info("produce-remotion completed: %s", result.video_path)
+
+
+def cmd_review_video(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    instance_name = args.reviewer_instance or cfg.remotion_reviewer_instance
+    vision_provider = OpenAICompatibleVisionProvider.from_model_config(
+        cfg.models_providers,
+        cfg.models_instances,
+        instance_name,
+    )
+    reviewer = VideoReviewer(
+        vision_provider=vision_provider,
+        output_dir=args.output_dir or cfg.output_video_reviews_dir,
+        max_frame_width=args.max_frame_width,
+    )
+    result = reviewer.review(
+        args.video,
+        job_id=args.job_id,
+        frame_count=args.frames,
+    )
+    logger.info("review-video completed: %s", result.review_path)
+    print(f"review={result.review_path}")
 
 
 def cmd_status(args):
@@ -431,14 +471,23 @@ def main():
     p_remotion.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
     p_remotion.add_argument(
         "--step",
-        choices=("all", "plan", "refine", "render"),
+        choices=("all", "plan", "tts", "refine", "render"),
         default="all",
-        help="Remotion 阶段：all / plan / refine / render",
+        help="Remotion 阶段：all / plan / tts / refine / render",
     )
     p_remotion.add_argument("--force", action="store_true", help="强制重做 Remotion input")
+    p_remotion.add_argument("--tts", action="store_true", default=False, help="启用 TTS 语音合成")
     p_remotion.add_argument("--refine", action="store_true", help="在 all 流程中启用视觉自迭代")
     p_remotion.add_argument("--refine-rounds", type=int, default=None, help="视觉自迭代最大轮数")
     p_remotion.add_argument("--review-only", action="store_true", help="只输出视觉审查报告，不应用 patch")
+
+    p_review_video = subparsers.add_parser("review-video", help="用多模态模型审查已生成视频")
+    p_review_video.add_argument("--video", "-v", required=True, help="待审查 mp4 路径")
+    p_review_video.add_argument("--job-id", default=None, help="审查任务 ID，默认取视频文件名")
+    p_review_video.add_argument("--frames", type=int, default=7, help="抽取关键帧数量，默认 7")
+    p_review_video.add_argument("--max-frame-width", type=int, default=768, help="送审关键帧最大宽度，默认 768")
+    p_review_video.add_argument("--output-dir", default=None, help="审查报告输出目录")
+    p_review_video.add_argument("--reviewer-instance", default=None, help="覆盖配置中的 reviewer instance")
 
     subparsers.add_parser("status", help="查看知识库状态")
 
@@ -460,6 +509,7 @@ def main():
         "polish": cmd_polish,
         "produce": cmd_produce,
         "produce-remotion": cmd_produce_remotion,
+        "review-video": cmd_review_video,
         "status": cmd_status,
         "clear": cmd_clear,
         "nuke": cmd_nuke,

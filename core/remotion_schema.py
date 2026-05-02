@@ -49,6 +49,7 @@ class RemotionVideoSpec:
     height: int
     fps: int
     scenes: list[RemotionSceneSpec]
+    audio_src: str = ""
 
     @property
     def total_duration(self) -> float:
@@ -121,6 +122,7 @@ def video_from_dict(data: dict[str, Any]) -> RemotionVideoSpec:
         width=int(data.get("width", 1080)),
         height=int(data.get("height", 1920)),
         fps=int(data.get("fps", 30)),
+        audio_src=str(data.get("audio_src", "")),
         scenes=[
             scene_from_dict(item, fallback_index=index)
             for index, item in enumerate(data.get("scenes", []), start=1)

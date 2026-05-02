@@ -139,14 +139,25 @@ class Settings:
     def output_plans_dir(self) -> Path:         return self._resolve_path("output_plans_dir")
     @property
     def output_remotion_dir(self) -> Path:      return self._resolve_path("output_remotion_dir")
+    @property
+    def output_video_reviews_dir(self) -> Path: return self._resolve_path("output_video_reviews_dir")
 
     # ---- tts 段 ----
     @property
-    def tts_engine(self) -> str:                return self._get("tts_engine", "edge-tts")
+    def tts_engine(self) -> str:                return self._get("tts_engine", "iflytek")
     @property
-    def tts_voice(self) -> str:                 return self._get("tts_voice", "zh-CN-XiaoxiaoNeural")
+    def tts_voice(self) -> str:                 return self._get("tts_voice", "x4_mingge")
     @property
     def tts_speed(self) -> float:               return self._get("tts_speed", 1.0)
+    # iflytek
+    @property
+    def tts_iflytek_host(self) -> str:          return self._get("tts_iflytek_host", "api-dx.xf-yun.com")
+    @property
+    def tts_iflytek_app_id(self) -> str:        return self._get("tts_iflytek_app_id", "")
+    @property
+    def tts_iflytek_api_key(self) -> str:       return self._get("tts_iflytek_api_key", "")
+    @property
+    def tts_iflytek_api_secret(self) -> str:    return self._get("tts_iflytek_api_secret", "")
 
     # ---- image_gen 段 ----
     @property
