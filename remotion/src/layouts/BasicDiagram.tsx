@@ -1,9 +1,10 @@
 import React from 'react';
-import {useCurrentFrame, useVideoConfig} from 'remotion';
+import {spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {RemotionSceneSpec} from '../schema';
 import {Canvas} from '../components/Canvas';
 import {TextBlock} from '../components/TextBlock';
 import {BackgroundPattern} from '../templates/BackgroundPattern';
+import {FloatingShapes} from '../templates/FloatingShapes';
 import {GridPulse} from '../templates/GridPulse';
 import {resolveSceneLayout} from './layoutEngine';
 import {resolveMotionStyle} from './motionEngine';
@@ -21,8 +22,17 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
     motion: 'slide_in' as const
   };
 
+  // Subtitle spring entrance — starts after all components
+  const subtitleDelay = 1.2 * fps;
+  const subtitleSpring = spring({
+    frame: frame - subtitleDelay,
+    fps,
+    config: {damping: 14, stiffness: 120, mass: 0.9},
+  });
+
   return (
     <Canvas scene={scene}>
+      <FloatingShapes />
       <GridPulse />
       {resolved.background ? <BackgroundPattern component={resolved.background} /> : null}
       <TextBlock
@@ -60,7 +70,9 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
             textAlign: 'center',
             boxShadow: '0 18px 50px rgba(28,35,58,0.18)',
             backdropFilter: 'blur(16px)',
-            zIndex: 40
+            opacity: Math.min(1, subtitleSpring * 1.1),
+            transform: `translateY(${(1 - subtitleSpring) * 20}px)`,
+            zIndex: 40,
           }}
         >
           {resolved.subtitle}

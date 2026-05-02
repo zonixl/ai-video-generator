@@ -289,13 +289,15 @@ PLAN_REMOTION_SCENE = """## 任务
 4. 组件数量控制在 2-4 个，复杂图表模板最多 1 个，避免遮挡。
 5. 文案要短，卡片文字尽量 2-10 个字。
 6. 每个 card、badge、metric、step 尽量选择一个 icon，arrow 可以不选 icon。
-7. 如果表达“替换、否定、废弃”，可用 danger + strike + x。
-8. 如果表达“结果、目标、升级”，可用 success + pop + check/target。
+7. 如果表达”替换、否定、废弃”，可用 danger + strike + x。
+8. 如果表达”结果、目标、升级”，可用 success + pop + check/target。
 9. 如果表达流程，优先使用 timeline_vertical + progress_steps/list/step。
 10. 如果表达数据、效率、成本、比例，优先使用 top_title_bottom_chart + 一个图表模板。
 11. 如果表达强调观点，优先使用 quote_focus + highlight_text/typewriter/quote/lower_third。
 12. 不要让多个大组件竞争同一区域，不要输出长段文字。
 13. 输出严格 JSON 对象，不要包含 ```json。
+14. **关键：headline 必须反映本镜专属要点，严禁照抄视频总标题 {title}。每镜 headline 应不同。**
+15. **tts_emotion：根据画面内容，选择合适的朗读语气 — 自信坚定 / 温柔亲切 / 娓娓道来 / 严肃沉稳 / 兴奋激动 / 急促紧张 / 低沉神秘 / 叙事平缓**
 
 ## 输出 JSON 格式
 {{
@@ -304,8 +306,9 @@ PLAN_REMOTION_SCENE = """## 任务
   "template": "basic_diagram",
   "theme": "warm_grid",
   "layout": "two_column_compare",
-  "headline": "这一镜标题",
+  "headline": "抓住本质而非表象",
   "subtitle": "这一镜字幕",
+  "tts_emotion": "自信坚定",
   "components": [
     {{"id": "c1", "type": "card", "slot": "left_top", "text": "问题", "variant": "danger", "motion": "strike", "icon": "x"}},
     {{"id": "a1", "type": "arrow", "slot": "center", "text": "转化", "variant": "default", "motion": "draw"}},

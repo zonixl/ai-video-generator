@@ -11,7 +11,7 @@ from core.remotion_planner import RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
 from core.remotion_renderer import RemotionRenderer
 from core.remotion_schema import RemotionProduceResult, RemotionVideoSpec, to_dict, video_from_dict
-from core.tts import EdgeTTSProvider
+from core.tts import EdgeTTSProvider, _audio_duration
 from utils.file_utils import read_json, read_text, write_json
 from utils.media_utils import make_job_id
 
@@ -86,14 +86,14 @@ class ProduceRemotionPipeline:
 
         # ---- Step: tts ----
         if step in {"all", "tts"} and use_tts:
-            logger.info("[2/5] Generating TTS audio ...")
+            logger.info("[2/5] Generating per-scene TTS audio ...")
             audio_asset = self._synthesize_audio(spec, job_id)
-            spec = self._sync_durations(spec, audio_asset.duration, input_path)
-            # 复制到 Remotion public/ 目录，使用相对文件名引用
+            # _synthesize_audio 内部已按每句话的实际音频时长设置 scene.duration
             self._copy_audio_for_remotion(audio_asset, job_id)
             spec.audio_src = f"{job_id}.mp3"
             write_json(input_path, to_dict(spec))
-            logger.info("      -> audio_src saved in spec: %s", spec.audio_src)
+            logger.info("      -> audio_src saved: %s | total: %.1fs %d scenes",
+                       spec.audio_src, spec.total_duration, len(spec.scenes))
         elif step == "tts" and not use_tts:
             logger.warning("Step 'tts' selected but --tts not enabled.")
 
@@ -171,45 +171,108 @@ class ProduceRemotionPipeline:
     # ---- tts ----
 
     def _synthesize_audio(self, spec: RemotionVideoSpec, job_id: str):
-        """从 scene 的 headline+subtitle 拼接 TTS 文本并合成音频。"""
-        text = "\n".join(
-            (scene.headline + "。" + scene.subtitle).strip("。") + "。"
-            for scene in spec.scenes
-        )
-        audio_path = self._audio_path(job_id)
-        logger.info(
-            "      TTS input: chars=%d voice=%s rate=%.2f output=%s",
-            len(text), self._cfg.tts_voice, self._cfg.tts_speed, audio_path,
-        )
-        asset = self._tts_provider.synthesize(
-            text,
-            audio_path,
-            voice=self._cfg.tts_voice,
-            rate=self._cfg.tts_speed,
-        )
-        logger.info("      -> audio %.1fs saved: %s", asset.duration, asset.path)
-        return asset
+        """逐 scene 合成独立 TTS 音频，精确匹配每句话的时长。"""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    def _sync_durations(self, spec: RemotionVideoSpec, audio_duration: float, input_path: Path) -> RemotionVideoSpec:
-        """按实际音频时长等比缩放所有 scene 的 duration，解决音字不同步。"""
-        if spec.total_duration <= 0 or audio_duration <= 0:
-            return spec
+        scene_dir = self._cfg.output_videos_dir / f"{job_id}_scenes"
+        scene_dir.mkdir(parents=True, exist_ok=True)
+        voice = self._cfg.tts_voice
+        rate = self._cfg.tts_speed
+        is_edge = (hasattr(self._tts_provider, 'provider_name') and
+                   self._tts_provider.provider_name == 'edge-tts')
 
-        before = spec.total_duration
-        factor = audio_duration / spec.total_duration
+        # 准备每 scene 的 TTS 文本 + 情感
+        tasks: list[tuple[int, str, str, Path]] = []  # (index, text, emotion, output_path)
         for scene in spec.scenes:
-            scene.duration = round(max(1.0, scene.duration * factor), 2)
+            text = scene.subtitle.strip()
+            if not text:
+                continue
+            emotion = getattr(scene, 'tts_emotion', '') or ''
+            path = scene_dir / f"scene_{scene.scene_index:03d}.mp3"
+            tasks.append((scene.scene_index, text, emotion, path))
 
-        # 写回 input.json，后续步骤使用缩放后的时长
-        write_json(input_path, to_dict(spec))
-        logger.info(
-            "      -> scaled scene durations: %.1fs -> %.1fs (factor=%.4f)",
-            before, spec.total_duration, factor,
-        )
-        if spec.total_duration != audio_duration:
-            logger.info("      -> final total: %.1fs (audio: %.1fs, diff: %.1fs)",
-                       spec.total_duration, audio_duration, audio_duration - spec.total_duration)
-        return spec
+        done, failed = 0, 0
+
+        if is_edge:
+            # EdgeTTS 串行（asyncio.run 在线程中不可靠）
+            for idx, text, emotion, path in tasks:
+                try:
+                    asset = self._tts_provider.synthesize(text, path, voice=voice, rate=rate, emotion=emotion)
+                    for scene in spec.scenes:
+                        if scene.scene_index == idx:
+                            scene.duration = round(max(1.0, asset.duration), 2)
+                            break
+                    done += 1
+                    logger.info("      scene %03d: %.1fs emotion=%s", idx, asset.duration, emotion or '-')
+                except Exception as exc:
+                    failed += 1
+                    logger.error("      scene %03d TTS FAILED: %s", idx, exc)
+        else:
+            # 讯飞 API 并行（最多3并发）
+            with ThreadPoolExecutor(max_workers=min(3, len(tasks))) as executor:
+                futures = {
+                    executor.submit(
+                        self._tts_provider.synthesize, text, path, voice=voice, rate=rate, emotion=emotion
+                    ): (idx, path)
+                    for idx, text, emotion, path in tasks
+                }
+                for future in as_completed(futures):
+                    idx, path = futures[future]
+                    try:
+                        asset = future.result()
+                        for scene in spec.scenes:
+                            if scene.scene_index == idx:
+                                scene.duration = round(max(1.0, asset.duration), 2)
+                                break
+                        done += 1
+                        logger.debug("      scene %03d: %.1fs", idx, asset.duration)
+                    except Exception as exc:
+                        failed += 1
+                        logger.error("      scene %03d TTS FAILED: %s", idx, exc)
+
+        if failed > 0:
+            logger.warning("      %d/%d scene TTS tasks failed", failed, len(tasks))
+        logger.info("      -> %d scene audio clips (%.1fs total)",
+                    done, spec.total_duration)
+
+        # 拼接所有 scene 音频为一个文件
+        audio_path = self._audio_path(job_id)
+        clip_paths = [path for _, _, _, path in tasks if path.exists()]
+        if not clip_paths:
+            raise RuntimeError(f"No scene audio clips generated (all {len(tasks)} tasks failed)")
+        self._concat_audio_clips(clip_paths, audio_path)
+        duration = _audio_duration(audio_path)
+        logger.info("      -> concatenated audio %.1fs saved: %s", duration, audio_path)
+        from core.schema import AudioAsset
+        return AudioAsset(path=str(audio_path), duration=duration, provider="edge-tts" if is_edge else "iflytek", voice=voice)
+
+    def _concat_audio_clips(self, clip_paths: list[Path], output_path: Path) -> None:
+        """用 moviepy 拼接多个 MP3 音频片段。"""
+        if len(clip_paths) == 1:
+            shutil.copy2(clip_paths[0], output_path)
+            return
+        try:
+            from moviepy import AudioFileClip, concatenate_audioclips
+        except ImportError:
+            from moviepy.editor import AudioFileClip, concatenate_audioclips
+
+        clips = []
+        for p in clip_paths:
+            try:
+                clip = AudioFileClip(str(p))
+                if clip.duration and clip.duration > 0:
+                    clips.append(clip)
+            except Exception:
+                pass
+        if not clips:
+            raise RuntimeError("No valid audio clips to concatenate")
+        if len(clips) == 1:
+            clips[0].write_audiofile(str(output_path), logger=None)
+        else:
+            final = concatenate_audioclips(clips)
+            final.write_audiofile(str(output_path), logger=None)
+        for clip in clips:
+            clip.close()
 
     def _audio_path(self, job_id: str) -> Path:
         return self._cfg.output_videos_dir / f"{job_id}.mp3"

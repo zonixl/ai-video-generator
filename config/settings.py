@@ -144,25 +144,33 @@ class Settings:
 
     # ---- tts 段 ----
     @property
-    def tts_engine(self) -> str:                return self._get("tts_engine", "iflytek")
+    def tts_engine(self) -> str:                return self._get("tts_engine", "mimo")
     @property
-    def tts_voice(self) -> str:                 return self._get("tts_voice", "x4_mingge")
+    def tts_voice(self) -> str:                 return self._get("tts_voice", "冰糖")
     @property
     def tts_speed(self) -> float:               return self._get("tts_speed", 1.0)
     # iflytek — 嵌套在 tts.iflytek 下，需从字典中提取
     @property
-    def tts_iflytek_host(self) -> str:          return self._get_iflytek("host", "api-dx.xf-yun.com")
+    def tts_iflytek_host(self) -> str:          return self._get_nested("tts_iflytek", "host", "api-dx.xf-yun.com")
     @property
-    def tts_iflytek_app_id(self) -> str:        return self._get_iflytek("app_id", "")
+    def tts_iflytek_app_id(self) -> str:        return self._get_nested("tts_iflytek", "app_id", "")
     @property
-    def tts_iflytek_api_key(self) -> str:       return self._get_iflytek("api_key", "")
+    def tts_iflytek_api_key(self) -> str:       return self._get_nested("tts_iflytek", "api_key", "")
     @property
-    def tts_iflytek_api_secret(self) -> str:    return self._get_iflytek("api_secret", "")
+    def tts_iflytek_api_secret(self) -> str:    return self._get_nested("tts_iflytek", "api_secret", "")
 
-    def _get_iflytek(self, key: str, default: str = "") -> str:
-        nested = self._get("tts_iflytek", {})
+    # mimo — 嵌套在 tts.mimo 下
+    @property
+    def tts_mimo_base_url(self) -> str:         return self._get_nested("tts_mimo", "base_url", "https://api.xiaomimimo.com/v1")
+    @property
+    def tts_mimo_api_key(self) -> str:          return self._get_nested("tts_mimo", "api_key", "")
+    @property
+    def tts_mimo_model(self) -> str:            return self._get_nested("tts_mimo", "model", "mimo-v2.5-tts")
+
+    def _get_nested(self, parent_key: str, child_key: str, default: str = "") -> str:
+        nested = self._get(parent_key, {})
         if isinstance(nested, dict):
-            return nested.get(key, default)
+            return nested.get(child_key, default)
         return default
 
     # ---- image_gen 段 ----

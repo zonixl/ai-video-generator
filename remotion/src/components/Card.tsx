@@ -1,10 +1,20 @@
 import React from 'react';
+import {spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {ComponentSpec} from '../schema';
 import {theme, variantStyle} from '../styles/theme';
 import {Icon} from './Icon';
 
 export const Card: React.FC<{component: ComponentSpec; style?: React.CSSProperties}> = ({component, style}) => {
   const colors = variantStyle(component.variant);
+  const isStrike = component.motion === 'strike';
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+
+  // Strike-through line spring
+  const strikeProgress = isStrike
+    ? spring({frame: frame - 15, fps, config: {damping: 18, stiffness: 140, mass: 0.7}})
+    : 0;
+
   return (
     <div
       style={{
@@ -26,7 +36,10 @@ export const Card: React.FC<{component: ComponentSpec; style?: React.CSSProperti
         lineHeight: 1.16,
         letterSpacing: '-0.04em',
         backdropFilter: 'blur(18px)',
-        ...style
+        position: 'relative',
+        overflow: 'hidden',
+        opacity: isStrike ? 0.72 : 1,
+        ...style,
       }}
     >
       {component.icon ? (
@@ -39,13 +52,32 @@ export const Card: React.FC<{component: ComponentSpec; style?: React.CSSProperti
             alignItems: 'center',
             justifyContent: 'center',
             background: 'rgba(255,255,255,0.62)',
-            color: colors.accent
+            color: colors.accent,
           }}
         >
           <Icon name={component.icon} />
         </div>
       ) : null}
       <div>{component.text}</div>
+
+      {/* strike-through diagonal line */}
+      {isStrike ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '-20%',
+            width: '140%',
+            height: 5,
+            background: `linear-gradient(90deg, transparent, ${colors.accent}, transparent)`,
+            borderRadius: 999,
+            transform: `translateY(-50%) rotate(-12deg) scaleX(${strikeProgress})`,
+            transformOrigin: 'left center',
+            opacity: 0.8,
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
     </div>
   );
 };

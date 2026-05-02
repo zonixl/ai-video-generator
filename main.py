@@ -20,7 +20,7 @@ from core.vectordb import VectorStore
 from core.retriever import Retriever
 from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
 from core.image_provider import ArkSeedreamImageProvider, PlaceholderImageProvider
-from core.tts import EdgeTTSProvider, iFLYTEKProvider
+from core.tts import EdgeTTSProvider, MiMoProvider, iFLYTEKProvider
 from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
 from core.remotion_renderer import RemotionRenderer
@@ -88,6 +88,12 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
 
 def build_tts_provider(cfg: Settings):
     """根据配置创建 TTS Provider。"""
+    if cfg.tts_engine == "mimo":
+        return MiMoProvider(
+            base_url=cfg.tts_mimo_base_url,
+            api_key=cfg.tts_mimo_api_key,
+            model=cfg.tts_mimo_model,
+        )
     if cfg.tts_engine == "iflytek":
         return iFLYTEKProvider(
             host=cfg.tts_iflytek_host,

@@ -72,6 +72,7 @@ export interface RemotionSceneSpec {
   layout?: SceneLayout;
   headline: string;
   subtitle?: string;
+  tts_emotion?: string;
   components: ComponentSpec[];
 }
 

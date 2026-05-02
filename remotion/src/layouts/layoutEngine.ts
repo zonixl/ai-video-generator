@@ -31,7 +31,7 @@ const regions: Record<string, React.CSSProperties> = {
   right_top: {left: 570, top: 430, width: 390, height: 220},
   left_bottom: {left: 120, top: 850, width: 390, height: 220},
   right_bottom: {left: 570, top: 850, width: 390, height: 220},
-  center: {left: 420, top: 585, width: 240, height: 130},
+  center: {left: 420, top: 498, width: 240, height: 90},
   bottom: {left: 150, top: 1120, width: 780, height: 240},
   wide_top: {left: 140, top: 390, width: 800, height: 360},
   wide_middle: {left: 140, top: 820, width: 800, height: 300},
@@ -105,7 +105,6 @@ const place = (components: ComponentSpec[], slots: string[], orderOffset: number
       position: 'absolute' as const,
       ...(regions[slots[index] ?? slots[slots.length - 1]] ?? regions.bottom),
       boxSizing: 'border-box' as const,
-      overflow: 'hidden' as const,
       zIndex: 10 + orderOffset + index
     }
   }));

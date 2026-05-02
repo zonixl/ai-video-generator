@@ -39,6 +39,7 @@ class RemotionSceneSpec:
     layout: SceneLayout | str = "auto"
     headline: str = ""
     subtitle: str = ""
+    tts_emotion: str = ""
     components: list[RemotionComponentSpec] = field(default_factory=list)
 
 
@@ -112,6 +113,7 @@ def scene_from_dict(data: dict[str, Any], fallback_index: int) -> RemotionSceneS
         }, "auto"),
         headline=str(data.get("headline") or data.get("title") or f"Scene {fallback_index}"),
         subtitle=str(data.get("subtitle", "")),
+        tts_emotion=str(data.get("tts_emotion", "")),
         components=components,
     )
 

@@ -27,7 +27,7 @@ class TTSProvider(ABC):
     """配音生成抽象接口。"""
 
     @abstractmethod
-    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0) -> AudioAsset:
+    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0, emotion: str = "") -> AudioAsset:
         ...
 
 
@@ -43,7 +43,7 @@ class iFLYTEKProvider(TTSProvider):
         self._api_secret = api_secret
         logger.info("iFLYTEKProvider initialized: host=%s app_id=%s", host, app_id[:8] + "***" if app_id else "")
 
-    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0) -> AudioAsset:
+    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0, emotion: str = "") -> AudioAsset:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -187,12 +187,107 @@ class iFLYTEKProvider(TTSProvider):
         }
 
 
+# ---- MiMo 风格预设（key 与 AI prompt 输出的 tts_emotion 值对应） ----
+MIMO_STYLES: dict[str, str] = {
+    "自信坚定": "自信坚定的语气，咬字清晰有力，停顿干净利落，透着不容置疑。",
+    "温柔亲切": "温柔亲切的语气，语速平缓，声音温暖，像在和好朋友分享心里话。",
+    "娓娓道来": "像讲故事一样娓娓道来，语调有起伏变化，节奏张弛有度，引人入胜。",
+    "严肃沉稳": "沉稳严肃的语调，语速偏慢，声音低沉有力，像在说一个重要的事实。",
+    "兴奋激动": "轻快上扬的语调，语速稍快，带着压抑不住的激动与小骄傲，声音明亮有活力。",
+    "急促紧张": "语速快而有力，声音紧绷，像在倒计时催促，制造紧迫感。",
+    "低沉神秘": "压低声音，气息感强，语速偏慢，带着一丝神秘和悬疑的氛围。",
+    "叙事平缓": "用短视频口播语气播报，语速适中、声音明亮清晰，有信息传递感。",
+}
+
+MIMO_DEFAULT_STYLE = "用短视频口播语气播报，语速适中、声音明亮清晰，有信息传递感。"
+
+class MiMoProvider(TTSProvider):
+    """小米 MiMo 语音合成 Provider — OpenAI-compatible API + 风格控制。"""
+
+    provider_name = "mimo"
+
+    def __init__(self, *, base_url: str, api_key: str, model: str):
+        self._base_url = base_url.rstrip("/")
+        self._api_key = api_key
+        self._model = model
+        logger.info("MiMoProvider initialized: base_url=%s model=%s", self._base_url, model)
+
+    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0, emotion: str = "") -> AudioAsset:
+        from openai import OpenAI
+
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 根据 AI 指定的 emotion 构建风格指令
+        style_instruction = MIMO_STYLES.get(emotion, MIMO_DEFAULT_STYLE)
+        emo_tag = emotion if emotion else "干脆"
+        tagged_text = f"({emo_tag}){text}"
+
+        logger.info(
+            "MiMo TTS start: chars=%d voice=%s emotion=%s",
+            len(text), voice, emotion or "default",
+        )
+
+        client = OpenAI(base_url=self._base_url, api_key=self._api_key, timeout=60)
+        response = client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "user", "content": style_instruction},
+                {"role": "assistant", "content": tagged_text},
+            ],
+            extra_body={"audio": {"voice": voice, "format": "mp3"}},
+        )
+
+        # 提取 base64 音频
+        audio_b64 = self._extract_audio(response)
+        if not audio_b64:
+            raise RuntimeError("MiMo API returned no audio data")
+
+        output_path.write_bytes(base64.b64decode(audio_b64))
+        duration = _audio_duration(output_path)
+        logger.info("MiMo TTS done: duration=%.1fs output=%s", duration, output_path)
+        return AudioAsset(
+            path=str(output_path),
+            duration=duration,
+            provider=self.provider_name,
+            voice=voice,
+        )
+
+    def _extract_audio(self, response) -> str | None:
+        """从 OpenAI-compatible 响应中提取 base64 音频数据。"""
+        if not response.choices:
+            return None
+        msg = response.choices[0].message
+
+        # OpenAI audio output format
+        audio = getattr(msg, "audio", None)
+        if audio and hasattr(audio, "data"):
+            logger.debug("MiMo audio extracted from message.audio.data (%d chars)", len(audio.data))
+            return audio.data
+
+        # Fallback: check model_extra / dict
+        raw = getattr(msg, "model_extra", {}) or {}
+        if "audio" in raw:
+            data = raw["audio"].get("data") or raw["audio"].get("audio")
+            if data:
+                return data
+
+        # Fallback: check content for audio
+        content = getattr(msg, "content", "")
+        if isinstance(content, str) and len(content) > 100:
+            logger.warning("MiMo: content field has %d chars - not typical audio", len(content))
+
+        logger.error("MiMo: could not extract audio from response. msg keys: %s",
+                     list(raw.keys()) if raw else type(msg).__name__)
+        return None
+
+
 class EdgeTTSProvider(TTSProvider):
     """基于 edge-tts 的低成本配音实现（暂时保留）。"""
 
     provider_name = "edge-tts"
 
-    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0) -> AudioAsset:
+    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0, emotion: str = "") -> AudioAsset:
         try:
             import edge_tts
         except ImportError as exc:
