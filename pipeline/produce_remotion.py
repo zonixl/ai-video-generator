@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import time
 from pathlib import Path
 
@@ -88,9 +89,11 @@ class ProduceRemotionPipeline:
             logger.info("[2/5] Generating TTS audio ...")
             audio_asset = self._synthesize_audio(spec, job_id)
             spec = self._sync_durations(spec, audio_asset.duration, input_path)
-            spec.audio_src = str(audio_asset.path)
+            # 复制到 Remotion public/ 目录，使用相对文件名引用
+            self._copy_audio_for_remotion(audio_asset, job_id)
+            spec.audio_src = f"{job_id}.mp3"
             write_json(input_path, to_dict(spec))
-            logger.info("      -> audio_src saved in spec: %s", audio_asset.path)
+            logger.info("      -> audio_src saved in spec: %s", spec.audio_src)
         elif step == "tts" and not use_tts:
             logger.warning("Step 'tts' selected but --tts not enabled.")
 
@@ -210,6 +213,15 @@ class ProduceRemotionPipeline:
 
     def _audio_path(self, job_id: str) -> Path:
         return self._cfg.output_videos_dir / f"{job_id}.mp3"
+
+    def _copy_audio_for_remotion(self, audio_asset, job_id: str) -> Path:
+        """复制音频到 Remotion public/ 目录，使 staticFile() 可引用。"""
+        public_dir = self._cfg.remotion_project_dir / "public"
+        public_dir.mkdir(parents=True, exist_ok=True)
+        dest = public_dir / f"{job_id}.mp3"
+        shutil.copy2(audio_asset.path, dest)
+        logger.info("      -> audio copied to remotion public/: %s", dest.name)
+        return dest
 
     def _input_path(self, job_id: str) -> Path:
         return self._cfg.output_remotion_dir / job_id / "input.json"

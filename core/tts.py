@@ -107,11 +107,25 @@ class iFLYTEKProvider(TTSProvider):
             },
         }
         resp = requests.post(auth_url, headers={"Content-Type": "application/json"}, data=json.dumps(body), timeout=30)
-        data = resp.json()
-        code = data.get("header", {}).get("code")
+        logger.debug("iFLYTEK create: http=%d body_preview=%s", resp.status_code, resp.text[:500])
+        if resp.status_code != 200:
+            raise RuntimeError(f"iFLYTEK create task http error: status={resp.status_code} body={resp.text[:500]}")
+        try:
+            data = resp.json()
+        except Exception:
+            raise RuntimeError(f"iFLYTEK create task returned non-JSON (http={resp.status_code}): {resp.text[:500]}")
+        # 先检查顶层错误码（auth失败等）
+        top_code = data.get("code")
+        if top_code is not None and top_code != 0:
+            raise RuntimeError(f"iFLYTEK create task error: code={top_code} message={data.get('message', '')}")
+        # 正常响应的 code 在 header 中
+        header = data.get("header", {})
+        code = header.get("code")
         if code != 0:
-            raise RuntimeError(f"iFLYTEK create task failed: code={code} message={data.get('header', {}).get('message', '')}")
-        task_id = data["header"]["task_id"]
+            raise RuntimeError(f"iFLYTEK create task failed: code={code} message={header.get('message', '')} full_header={header}")
+        task_id = header.get("task_id")
+        if not task_id:
+            raise RuntimeError(f"iFLYTEK create task: no task_id in response, keys={list(data.keys())}")
         logger.info("iFLYTEK task created: task_id=%s", task_id)
         return task_id
 
@@ -123,6 +137,9 @@ class iFLYTEKProvider(TTSProvider):
             time.sleep(interval)
             resp = requests.post(auth_url, headers={"Content-Type": "application/json"}, data=json.dumps(body), timeout=30)
             data = resp.json()
+            top_code = data.get("code")
+            if top_code is not None and top_code != 0:
+                raise RuntimeError(f"iFLYTEK query task error: code={top_code} message={data.get('message', '')}")
             code = data.get("header", {}).get("code")
             if code != 0:
                 raise RuntimeError(f"iFLYTEK query task failed: task_id={task_id} code={code}")
