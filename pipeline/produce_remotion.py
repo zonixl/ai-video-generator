@@ -103,13 +103,17 @@ class ProduceRemotionPipeline:
                 raise RuntimeError("Remotion refiner is not configured")
             logger.info("[%s] Refining Remotion input with vision review ...",
                         "3/5" if (step == "all" and use_tts) else "2/4")
-            self._refiner.refine(
-                input_path=input_path,
-                job_id=job_id,
-                max_rounds=refine_rounds or self._cfg.remotion_refine_rounds,
-                review_only=review_only,
-            )
-            spec = video_from_dict(read_json(input_path))
+            try:
+                self._refiner.refine(
+                    input_path=input_path,
+                    job_id=job_id,
+                    max_rounds=refine_rounds or self._cfg.remotion_refine_rounds,
+                    review_only=review_only,
+                )
+                spec = video_from_dict(read_json(input_path))
+            except Exception as exc:
+                logger.warning("Review step failed (skipped): %s", exc)
+                logger.info("Continuing to render with current input ...")
         elif step == "refine":
             logger.info("Step 'refine' skipped because refine is disabled.")
 
