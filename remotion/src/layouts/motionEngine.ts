@@ -60,12 +60,12 @@ export const resolveMotionStyle = ({
     };
   }
 
-  // ---- strike (cross-out → appear) ----
+  // ---- strike (negated/old — subtle fade, no red line needed) ----
   if (motion === 'strike') {
-    const p = spring({frame: frame - delay, fps, config: SNAPPY});
+    const p = spring({frame: frame - delay, fps, config: SMOOTH});
     return {
-      opacity: Math.min(1, p * 1.3),
-      transform: `scale(${0.92 + p * 0.08}) rotate(${(1 - p) * 3}deg)`,
+      opacity: 0.55 + p * 0.45,
+      transform: `scale(${0.92 + p * 0.06})`,
     };
   }
 

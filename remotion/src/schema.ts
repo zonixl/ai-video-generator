@@ -49,6 +49,7 @@ export type MotionType = 'fade_in' | 'slide_in' | 'pop' | 'draw' | 'strike' | 'p
 export type SceneLayout =
   | 'auto'
   | 'two_column_compare'
+  | 'vertical_flow'
   | 'center_focus'
   | 'top_title_bottom_chart'
   | 'timeline_vertical'

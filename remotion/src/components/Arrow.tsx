@@ -1,91 +1,68 @@
 import React from 'react';
-import {useCurrentFrame} from 'remotion';
-import {ArrowRight, MoveRight} from 'lucide-react';
+import {useCurrentFrame, spring} from 'remotion';
+import {ArrowRight, ArrowDown, MoveRight} from 'lucide-react';
 
-const DOT_COUNT = 5;
-
-export const Arrow: React.FC<{progress: number; style?: React.CSSProperties; label?: string}> = ({
-  progress,
-  style,
-  label,
-}) => {
+export const Arrow: React.FC<{
+  progress: number;
+  style?: React.CSSProperties;
+  label?: string;
+  direction?: 'right' | 'down';
+}> = ({progress, style, label, direction = 'right'}) => {
   const frame = useCurrentFrame();
   const clamped = Math.max(0, Math.min(1, progress));
-  const lineWidth = clamped * 120;
 
-  // tip pulse glow
-  const glow = 1 + Math.sin(frame / 14) * 0.28;
+  // subtle pulse
+  const pulse = 1 + Math.sin(frame / 14) * 0.15;
+
+  // entrance spring
+  const enter = spring({
+    frame: frame - 4,
+    fps: 30,
+    config: {damping: 14, stiffness: 160, mass: 0.7},
+  });
+
+  const ArrowIcon = direction === 'down' ? ArrowDown : ArrowRight;
+  const containerStyle: React.CSSProperties = direction === 'right'
+    ? {width: 178, height: 86}
+    : {width: 178, height: 86, transform: 'rotate(90deg)'};
 
   return (
-    <div style={{position: 'relative', width: 178, height: 86, color: '#334155', ...style}}>
-      {/* flowing dot trail */}
-      {Array.from({length: DOT_COUNT}).map((_, i) => {
-        const dotProgress = ((frame * 1.6 + i * (120 / DOT_COUNT)) % 120) / 120;
-        if (dotProgress > clamped) return null;
-        const dotX = 28 + dotProgress * 120;
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              left: dotX,
-              top: 38,
-              width: 5,
-              height: 5,
-              borderRadius: 999,
-              background: '#0ea5e9',
-              opacity: 0.5 + Math.sin(frame / 7 + i) * 0.3,
-              boxShadow: '0 0 6px rgba(14,165,233,0.45)',
-            }}
-          />
-        );
-      })}
-
-      {/* progress line */}
+    <div style={{
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...containerStyle,
+      color: '#334155',
+      opacity: enter,
+      transform: `${containerStyle.transform || ''} scale(${0.85 + enter * 0.15})`,
+      ...style,
+    }}>
+      {/* arrow tip icon only — clean, no line extending into cards */}
       <div
         style={{
-          position: 'absolute',
-          left: 28,
-          top: 40,
-          width: lineWidth,
-          height: 3,
-          borderRadius: 999,
-          background: 'linear-gradient(90deg, rgba(14,165,233,0.3), #0ea5e9)',
-          transition: 'width 0.15s linear',
-        }}
-      />
-
-      {/* arrow tip with glow */}
-      <div
-        style={{
-          position: 'absolute',
-          right: 24,
-          top: 22,
           opacity: clamped,
-          transform: `scale(${glow})`,
-          filter: `drop-shadow(0 0 ${5 * glow}px rgba(14,165,233,0.5))`,
+          transform: `scale(${pulse})`,
+          filter: `drop-shadow(0 0 ${5 * pulse}px rgba(14,165,233,0.5))`,
         }}
       >
-        <ArrowRight size={36} strokeWidth={2.4} color="#0ea5e9" />
+        <ArrowIcon size={42} strokeWidth={2.2} color="#0ea5e9" />
       </div>
 
       {label ? (
         <div
           style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: -8,
+            marginTop: 8,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
             gap: 6,
             fontSize: 22,
             fontWeight: 800,
             color: '#64748b',
           }}
         >
-          <MoveRight size={20} strokeWidth={2.2} />
+          <MoveRight size={18} strokeWidth={2} />
           {label}
         </div>
       ) : null}

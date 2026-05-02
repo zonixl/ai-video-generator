@@ -16,7 +16,7 @@ ComponentSlot = Literal["title", "left_top", "left_bottom", "right_top", "right_
 ComponentVariant = Literal["default", "primary", "success", "danger", "warning", "muted"]
 MotionType = Literal["fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"]
 IconName = Literal["sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers", "code", "settings"]
-SceneLayout = Literal["auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"]
+SceneLayout = Literal["auto", "two_column_compare", "vertical_flow", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"]
 
 
 @dataclass

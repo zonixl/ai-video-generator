@@ -82,21 +82,6 @@ export const renderRegistryComponent = ({
   return (
     <div key={component.id} style={style}>
       <Card component={component} />
-      {component.motion === 'strike' ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: -20,
-            right: -20,
-            top: '50%',
-            height: 6,
-            borderRadius: 999,
-            background: 'linear-gradient(90deg, rgba(239,68,68,0.2), #ef4444, rgba(239,68,68,0.2))',
-            transform: 'rotate(-2deg)',
-            boxShadow: '0 8px 22px rgba(239,68,68,0.24)'
-          }}
-        />
-      ) : null}
     </div>
   );
 };

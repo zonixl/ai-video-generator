@@ -210,7 +210,8 @@ PLAN_REMOTION_SCENE = """## 任务
 
 ## 可用 layout
 - auto：默认自动布局，系统会二次归一化避免重叠
-- two_column_compare：左右对比，中间可放箭头
+- two_column_compare：左右对比，箭头放在卡片下方避免重叠
+- vertical_flow：上下排列，中间箭头向下连接，适合箭头+双卡片场景（首选）
 - center_focus：一个核心组件居中强调
 - top_title_bottom_chart：顶部放图表/数据，底部放解释
 - timeline_vertical：流程、步骤、列表

@@ -22,8 +22,8 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
     motion: 'slide_in' as const
   };
 
-  // Subtitle spring entrance — starts after all components
-  const subtitleDelay = 1.2 * fps;
+  // Subtitle spring entrance — nearly instant, must sync with audio
+  const subtitleDelay = 0.15 * fps;
   const subtitleSpring = spring({
     frame: frame - subtitleDelay,
     fps,

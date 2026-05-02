@@ -31,8 +31,14 @@ const regions: Record<string, React.CSSProperties> = {
   right_top: {left: 570, top: 430, width: 390, height: 220},
   left_bottom: {left: 120, top: 850, width: 390, height: 220},
   right_bottom: {left: 570, top: 850, width: 390, height: 220},
-  center: {left: 420, top: 498, width: 240, height: 90},
-  bottom: {left: 150, top: 1120, width: 780, height: 240},
+  // arrow below both cards (two_column_compare) or between vertical items
+  center: {left: 440, top: 670, width: 200, height: 70},
+  bottom: {left: 150, top: 800, width: 780, height: 180},
+  // vertical_flow: stacked top-to-bottom
+  v_top: {left: 240, top: 440, width: 600, height: 170},
+  v_mid: {left: 380, top: 630, width: 320, height: 70},
+  v_bot: {left: 240, top: 720, width: 600, height: 170},
+  // wide slots for timeline/chart layouts
   wide_top: {left: 140, top: 390, width: 800, height: 360},
   wide_middle: {left: 140, top: 820, width: 800, height: 300},
   wide_bottom: {left: 150, top: 1180, width: 780, height: 240},
@@ -55,6 +61,19 @@ export const resolveSceneLayout = (scene: RemotionSceneSpec): ResolvedScene => {
 };
 
 const assignLayoutItems = (components: ComponentSpec[], layout: SceneLayout): LayoutItem[] => {
+  // vertical_flow: cards stacked top→bottom, arrow in between pointing down
+  if (layout === 'vertical_flow') {
+    const arrow = components.find((component) => component.type === 'arrow');
+    const cards = components.filter((component) => component.type !== 'arrow' && component.type !== 'badge');
+    const badges = components.filter((component) => component.type === 'badge');
+    const result: LayoutItem[] = [];
+    if (cards.length >= 1) result.push(...place(cards.slice(0, 1), ['v_top'], 0));
+    if (arrow) result.push(...place([arrow], ['v_mid'], 1));
+    if (cards.length >= 2) result.push(...place(cards.slice(1, 2), ['v_bot'], 2));
+    result.push(...place(cards.slice(2).concat(badges), ['wide_bottom', 'bottom'], 3));
+    return result.sort((a, b) => a.order - b.order);
+  }
+
   if (layout === 'two_column_compare') {
     const arrow = components.find((component) => component.type === 'arrow');
     const others = components.filter((component) => component.type !== 'arrow');
@@ -120,7 +139,7 @@ const inferLayout = (components: ComponentSpec[]): SceneLayout => {
     return 'top_title_bottom_chart';
   }
   if (components.some((component) => component.type === 'arrow')) {
-    return 'two_column_compare';
+    return 'vertical_flow';  // use vertical flow by default when arrow present
   }
   return 'auto';
 };

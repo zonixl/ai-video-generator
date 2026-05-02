@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
-ALLOWED_LAYOUTS = {"auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"}
+ALLOWED_LAYOUTS = {"auto", "two_column_compare", "vertical_flow", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"}
 ALLOWED_THEMES = {"warm_grid", "dark_grid", "clean"}
 ALLOWED_MOTIONS = {"fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"}
 ALLOWED_VARIANTS = {"default", "primary", "success", "danger", "warning", "muted"}
