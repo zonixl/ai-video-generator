@@ -149,7 +149,7 @@ const normalizeComponents = (components: ComponentSpec[]) => {
   const normalized: ComponentSpec[] = [];
 
   for (const component of components) {
-    if (normalized.length >= 4) {
+    if (normalized.length >= 5) {
       break;
     }
     if (complexTypes.has(component.type)) {

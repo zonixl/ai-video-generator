@@ -1,4 +1,5 @@
 import React from 'react';
+import {useCurrentFrame} from 'remotion';
 import type {RemotionSceneSpec} from '../schema';
 import {backgroundFor, theme} from '../styles/theme';
 
@@ -6,7 +7,10 @@ export const Canvas: React.FC<{
   scene: RemotionSceneSpec;
   children: React.ReactNode;
 }> = ({scene, children}) => {
+  const frame = useCurrentFrame();
   const background = backgroundFor(scene);
+  // breathe: slow background gradient pulse over ~6 seconds
+  const breathe = 1 + Math.sin(frame / 90) * 0.06;
   return (
     <div
       style={{
@@ -19,8 +23,8 @@ export const Canvas: React.FC<{
         color: theme.ink,
         backgroundImage:
           scene.theme === 'dark_grid'
-            ? 'radial-gradient(circle at 30% 18%, rgba(59,130,246,0.24), transparent 34%), radial-gradient(circle at 78% 24%, rgba(168,85,247,0.18), transparent 30%)'
-            : 'radial-gradient(circle at 24% 18%, rgba(14,165,233,0.16), transparent 34%), radial-gradient(circle at 82% 16%, rgba(245,158,11,0.14), transparent 30%)'
+            ? `radial-gradient(circle at 30% 18%, rgba(59,130,246,${0.24 * breathe}), transparent 34%), radial-gradient(circle at 78% 24%, rgba(168,85,247,${0.18 * breathe}), transparent 30%)`
+            : `radial-gradient(circle at 24% 18%, rgba(14,165,233,${0.16 * breathe}), transparent 34%), radial-gradient(circle at 82% 16%, rgba(245,158,11,${0.14 * breathe}), transparent 30%)`
       }}
     >
       <div
