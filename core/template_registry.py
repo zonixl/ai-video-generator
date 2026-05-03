@@ -12,7 +12,7 @@ class TemplateInfo:
     description: str        # 给 AI 选择用的描述
     needs_image: bool       # 是否需要文生图
     category: str           # image / static
-    image_size: str = ""    # 图片尺寸提示：full / card / ""
+    image_size: str = ""    # 图片尺寸类型：full / card_portrait / card / ""
 
 
 TEMPLATES: dict[str, TemplateInfo] = {
@@ -40,7 +40,7 @@ TEMPLATES: dict[str, TemplateInfo] = {
         description="雅致插画：暖色背景+渐变光晕装饰，上方居中圆角AI插画，下方排版文字，适合人文/哲理/情感类",
         needs_image=True,
         category="image",
-        image_size="card",
+        image_size="card_portrait",
     ),
     "image_card": TemplateInfo(
         name="image_card",

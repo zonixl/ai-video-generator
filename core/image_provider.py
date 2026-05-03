@@ -214,34 +214,50 @@ class ArkSeedreamImageProvider(ImageProvider):
         return self._client
 
     def _build_prompt(self, scene: Scene, width: int, height: int, template: str = "") -> str:
-        orientation = "横屏" if width > height else "竖屏"
         from core.template_registry import get_image_size
         img_size = get_image_size(template)
+
+        # 方式 2 已指定精确尺寸，prompt 中补充构图要求
         if img_size == "full":
-            # image_full：文字直接叠在图片上，画面必须留出深色区域
             style_hint = (
-                "全屏背景构图。画面上方1/3和底部1/4区域必须偏暗或有深色渐变遮罩，"
+                "画面上方1/3和底部1/4区域必须偏暗或有深色渐变遮罩，"
                 "确保白色文字叠上去清晰可读。中间区域为主体。"
-                "整体电影感，有明暗层次。"
             )
+        elif img_size == "card_portrait":
+            style_hint = "竖构图，主体完整居中，头顶留适当空间，不要裁切人物。"
         else:
-            # 卡片模板：图片在卡片内，文字在图片下方，不重叠
-            style_hint = "主体居中，适合裁剪为卡片封面，干净背景，色彩鲜明"
+            style_hint = "横构图，主体完整居中，左右留适当空间，不要裁切人物。"
+
         return (
             f"{scene.image_prompt}\n"
             f"画面描述：{scene.visual}\n"
-            f"画幅：{orientation} {width}x{height}，高清。{style_hint}\n"
-            "限制：不要文字，不要字幕，不要 logo，不要水印，不要二维码，不要人物面部文字。"
+            f"{style_hint}\n"
+            "限制：不要文字，不要字幕，不要 logo，不要水印，不要二维码。"
         )
 
-    def _size_for_template(self, width: int, height: int, template: str) -> str:
-        """根据模板类型决定图片尺寸。"""
+    # ---- 方式 2：精确像素尺寸（必须满足总像素≥3686400，宽高比∈[1/16,16]）----
+    # 各模板在不同朝向下的目标尺寸
+    _SIZE_MAP: dict[tuple[str, str], tuple[int, int]] = {
+        # image_full：匹配视频帧比例
+        ("full", "portrait"):  (1440, 2560),   # 9:16,  3,686,400 px
+        ("full", "landscape"): (2560, 1440),   # 16:9,  3,686,400 px
+        # image_elegant：竖卡片
+        ("card_portrait", "portrait"):  (1800, 2400),   # 3:4,  4,320,000 px
+        ("card_portrait", "landscape"): (1800, 2400),   # 3:4,  4,320,000 px
+        # image_card / modern / neon：横卡片
+        ("card", "portrait"):  (2352, 1568),   # 3:2,  3,688,416 px
+        ("card", "landscape"): (2352, 1568),   # 3:2,  3,688,416 px
+    }
+
+    def _size_for_template(self, video_w: int, video_h: int, template: str) -> str:
+        """根据模板和视频朝向，返回 Seedream API 的 size 参数。"""
         from core.template_registry import get_image_size
-        img_size = get_image_size(template)
-        if img_size == "full":
-            # image_full 模板：图片铺满整个视频帧，用视频实际尺寸
-            return f"{width}x{height}"
-        # 卡片模板：用默认尺寸（2K），CSS 负责裁剪
+        img_size = get_image_size(template) or "card"
+        orientation = "landscape" if video_w > video_h else "portrait"
+        key = (img_size, orientation)
+        if key in self._SIZE_MAP:
+            w, h = self._SIZE_MAP[key]
+            return f"{w}x{h}"
         return self._size
 
     def _download_url(self, url: str, output_path: Path) -> None:
