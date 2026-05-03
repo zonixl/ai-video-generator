@@ -25,12 +25,14 @@ from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
 from core.remotion_renderer import RemotionRenderer
 from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
+from core.video_gen_provider import SeedanceVideoProvider
 from core.video_reviewer import VideoReviewer
 from core.vision_provider import OpenAICompatibleVisionProvider
 from pipeline.ingest import IngestPipeline
 from pipeline.generate import GeneratePipeline
 from pipeline.produce import ProducePipeline
 from pipeline.produce_remotion import ProduceRemotionPipeline
+from pipeline.produce_seedance import ProduceSeedancePipeline
 
 logger = logging.getLogger("main")
 
@@ -198,6 +200,62 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
     )
 
 
+def build_produce_seedance_pipeline(cfg: Settings) -> ProduceSeedancePipeline:
+    # splitter
+    rule_splitter = RuleBasedSceneSplitter(
+        min_scene_duration=cfg.video_min_scene_duration,
+        max_scene_duration=cfg.video_max_scene_duration,
+        chars_per_second=cfg.video_chars_per_second,
+    )
+    if cfg.video_scene_splitter == "ai":
+        splitter = AISceneSplitter(
+            build_model_manager(cfg),
+            instance_name=cfg.video_scene_planner_instance,
+            fallback=rule_splitter,
+            min_scene_duration=cfg.video_min_scene_duration,
+            max_scene_duration=cfg.video_max_scene_duration,
+        )
+    else:
+        splitter = rule_splitter
+
+    # image provider (Seedream)
+    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
+        image_provider = ArkSeedreamImageProvider(
+            base_url=cfg.image_gen_base_url,
+            api_key=cfg.image_gen_api_key,
+            model=cfg.image_gen_model,
+            size=cfg.image_gen_size,
+            watermark=cfg.image_gen_watermark,
+        )
+    else:
+        image_provider = PlaceholderImageProvider()
+
+    # video provider (Seedance)
+    video_provider = None
+    if cfg.video_gen_engine == "seedance":
+        api_key = cfg.video_gen_api_key or cfg.image_gen_api_key
+        video_provider = SeedanceVideoProvider(
+            base_url=cfg.video_gen_base_url,
+            api_key=api_key,
+            model=cfg.video_gen_model,
+            resolution=cfg.video_gen_resolution,
+            ratio=cfg.video_gen_ratio,
+            duration=cfg.video_gen_duration,
+            generate_audio=cfg.video_gen_generate_audio,
+            watermark=cfg.video_gen_watermark,
+            timeout=cfg.video_gen_timeout,
+            poll_interval=cfg.video_gen_poll_interval,
+        )
+
+    return ProduceSeedancePipeline(
+        cfg,
+        splitter=splitter,
+        image_provider=image_provider,
+        video_provider=video_provider,
+        tts_provider=build_tts_provider(cfg),
+    )
+
+
 def _process_one(args_tuple: tuple) -> dict:
     """处理单个文件（供线程池调用）。复用同一个 pipeline 实例。"""
     audio_file, pipeline, force = args_tuple
@@ -355,6 +413,35 @@ def cmd_review_video(args):
     )
     logger.info("review-video completed: %s", result.review_path)
     print(f"review={result.review_path}")
+
+
+def cmd_produce_seedance(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_produce_seedance_pipeline(cfg)
+    # --tts 隐含 audio_mode=tts
+    audio_mode = args.audio_mode
+    if args.use_tts and audio_mode == "tts":
+        pass  # 用户显式指定 --tts + --audio-mode tts
+    elif args.use_tts:
+        audio_mode = "tts"
+    result = pipeline.run(
+        args.script,
+        output_path=args.output,
+        title=args.title,
+        width=args.width,
+        height=args.height,
+        fps=args.fps,
+        job_id=args.job_id,
+        step=args.step,
+        force=args.force,
+        audio_mode=audio_mode,
+        use_tts=args.use_tts,
+        auto_confirm=args.auto_confirm,
+        regenerate=args.regenerate,
+        user_images_dir=args.user_images,
+    )
+    logger.info("produce-seedance completed: %s", result["video_path"])
 
 
 def cmd_status(args):
@@ -517,6 +604,34 @@ def main():
     p_remotion.add_argument("--refine-rounds", type=int, default=None, help="视觉自迭代最大轮数")
     p_remotion.add_argument("--review-only", action="store_true", help="只输出视觉审查报告，不应用 patch")
 
+    p_seedance = subparsers.add_parser("produce-seedance", help="Seedance 图生视频")
+    p_seedance.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
+    p_seedance.add_argument("--job-id", default=None, help="任务 ID")
+    p_seedance.add_argument("--output", "-o", default=None, help="输出 mp4 路径")
+    p_seedance.add_argument("--title", default=None, help="视频标题")
+    p_seedance.add_argument("--width", type=int, default=None, help="视频宽度")
+    p_seedance.add_argument("--height", type=int, default=None, help="视频高度")
+    p_seedance.add_argument("--fps", type=int, default=None, help="视频帧率")
+    p_seedance.add_argument(
+        "--step",
+        choices=("all", "plan", "images", "videos", "compose"),
+        default="all",
+        help="执行阶段：all / plan / images / videos / compose",
+    )
+    p_seedance.add_argument("--force", action="store_true", help="强制重做")
+    p_seedance.add_argument(
+        "--audio-mode",
+        choices=("seedance-audio", "tts", "none"),
+        default="tts",
+        help="音频模式：seedance-audio(S自带音频) / tts(配音合成) / none(无音频)",
+    )
+    p_seedance.add_argument("--tts", dest="use_tts", action="store_true", help="启用 TTS 配音")
+    p_seedance.add_argument("--no-tts", dest="use_tts", action="store_false")
+    p_seedance.set_defaults(use_tts=False)
+    p_seedance.add_argument("--auto-confirm", action="store_true", help="自动生成，跳过确认")
+    p_seedance.add_argument("--regenerate", type=int, default=None, help="重新生成指定 scene 的图片")
+    p_seedance.add_argument("--user-images", default=None, help="用户自定义图片目录")
+
     p_review_video = subparsers.add_parser("review-video", help="用多模态模型审查已生成视频")
     p_review_video.add_argument("--video", "-v", required=True, help="待审查 mp4 路径")
     p_review_video.add_argument("--job-id", default=None, help="审查任务 ID，默认取视频文件名")
@@ -545,6 +660,7 @@ def main():
         "polish": cmd_polish,
         "produce": cmd_produce,
         "produce-remotion": cmd_produce_remotion,
+        "produce-seedance": cmd_produce_seedance,
         "review-video": cmd_review_video,
         "status": cmd_status,
         "clear": cmd_clear,

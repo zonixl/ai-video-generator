@@ -74,6 +74,9 @@ landscape:
 review:
 	uv run python main.py review-video $(ARGS)
 
+seedance:
+	uv run python main.py produce-seedance $(ARGS)
+
 preview:
 	@cmd /C "cd remotion && npm run preview"
 

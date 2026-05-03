@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from abc import ABC, abstractmethod
 import logging
 from pathlib import Path
@@ -20,6 +21,19 @@ class ImageProvider(ABC):
     @abstractmethod
     def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int, template: str = "") -> ImageAsset:
         ...
+
+    def generate_from_ref(
+        self,
+        ref_image_path: str | Path,
+        scene: Scene,
+        output_dir: str | Path,
+        *,
+        width: int,
+        height: int,
+    ) -> ImageAsset:
+        """基于参考图生成新图（img2img）。默认回退到纯文生图。"""
+        logger.info("generate_from_ref not overridden, falling back to text-to-image")
+        return self.generate(scene, output_dir, width=width, height=height)
 
 
 class PlaceholderImageProvider(ImageProvider):
@@ -194,6 +208,56 @@ class ArkSeedreamImageProvider(ImageProvider):
             raise RuntimeError("Ark Seedream did not return image url")
         self._downloader(image_url, image_path)
         logger.info("Ark Seedream image done: scene=%03d path=%s", scene.index, image_path)
+        return ImageAsset(
+            scene_index=scene.index,
+            path=str(image_path),
+            provider=self.provider_name,
+            prompt=prompt,
+        )
+
+    def generate_from_ref(
+        self,
+        ref_image_path: str | Path,
+        scene: Scene,
+        output_dir: str | Path,
+        *,
+        width: int,
+        height: int,
+    ) -> ImageAsset:
+        """基于参考图生成新图（img2img），保持风格一致。"""
+        if not self._api_key:
+            raise RuntimeError("ArkSeedreamImageProvider 需要配置 image_gen.api_key")
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        image_path = output_dir / scene_filename(scene.index, ".png")
+        prompt = self._build_prompt(scene, width, height)
+        size = self._size_for_template(width, height, "")
+
+        # 编码参考图为 base64
+        ref_path = Path(ref_image_path)
+        ref_b64 = base64.b64encode(ref_path.read_bytes()).decode()
+        ref_mime = "image/png" if ref_path.suffix.lower() == ".png" else "image/jpeg"
+
+        logger.info(
+            "Ark Seedream img2img start: scene=%03d ref=%s size=%s prompt_len=%d",
+            scene.index, ref_path.name, size, len(prompt),
+        )
+        response = self._client_or_create().images.generate(
+            model=self._model,
+            prompt=prompt,
+            size=size,
+            response_format="url",
+            extra_body={
+                "watermark": self._watermark,
+                "image": f"data:{ref_mime};base64,{ref_b64}",
+            },
+        )
+        image_url = response.data[0].url
+        if not image_url:
+            raise RuntimeError("Ark Seedream img2img did not return image url")
+        self._downloader(image_url, image_path)
+        logger.info("Ark Seedream img2img done: scene=%03d path=%s", scene.index, image_path)
         return ImageAsset(
             scene_index=scene.index,
             path=str(image_path),

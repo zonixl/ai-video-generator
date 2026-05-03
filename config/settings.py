@@ -191,6 +191,30 @@ class Settings:
     @property
     def image_gen_height(self) -> int:          return self._get("image_gen_height", 1920)
 
+    # ---- video_gen 段 ----
+    @property
+    def video_gen_engine(self) -> str:          return self._get("video_gen_engine", "disabled")
+    @property
+    def video_gen_base_url(self) -> str:        return self._get("video_gen_base_url", "")
+    @property
+    def video_gen_api_key(self) -> str:         return self._get("video_gen_api_key", "")
+    @property
+    def video_gen_model(self) -> str:           return self._get("video_gen_model", "")
+    @property
+    def video_gen_resolution(self) -> str:      return self._get("video_gen_resolution", "720p")
+    @property
+    def video_gen_ratio(self) -> str:           return self._get("video_gen_ratio", "9:16")
+    @property
+    def video_gen_duration(self) -> int:        return self._get("video_gen_duration", 5)
+    @property
+    def video_gen_generate_audio(self) -> bool: return self._get("video_gen_generate_audio", False)
+    @property
+    def video_gen_watermark(self) -> bool:      return self._get("video_gen_watermark", False)
+    @property
+    def video_gen_timeout(self) -> int:         return self._get("video_gen_timeout", 300)
+    @property
+    def video_gen_poll_interval(self) -> float: return self._get("video_gen_poll_interval", 5.0)
+
     # ---- video 段 ----
     @property
     def video_scene_splitter(self) -> str:      return self._get("video_scene_splitter", "rule")
