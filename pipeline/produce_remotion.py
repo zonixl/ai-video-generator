@@ -11,7 +11,7 @@ from core.remotion_planner import RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
 from core.remotion_renderer import RemotionRenderer
 from core.remotion_schema import RemotionProduceResult, RemotionVideoSpec, to_dict, video_from_dict
-from core.template_registry import needs_image
+from core.template_registry import get_image_size, needs_image
 from core.tts import EdgeTTSProvider, _audio_duration
 from utils.file_utils import read_json, read_text, write_json
 from utils.media_utils import make_job_id
@@ -154,6 +154,7 @@ class ProduceRemotionPipeline:
                     asset = self._image_provider.generate(
                         pseudo_scene, image_dir,
                         width=spec.width, height=spec.height,
+                        template=scene.template,
                     )
                     # image_url 是相对于 remotion/public 的路径
                     scene.image_url = f"{job_id}_images/{Path(asset.path).name}"

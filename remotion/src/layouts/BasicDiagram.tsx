@@ -12,8 +12,8 @@ import {renderRegistryComponent} from '../templates/registry';
 
 export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const resolved = resolveSceneLayout(scene);
+  const {fps, width, height} = useVideoConfig();
+  const resolved = resolveSceneLayout(scene, width, height);
   const titleComponent = {
     id: 'headline',
     type: 'title' as const,
@@ -21,6 +21,8 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
     text: resolved.headline,
     motion: 'slide_in' as const
   };
+
+  const pad = width * 0.11;
 
   // Subtitle spring entrance — nearly instant, must sync with audio
   const subtitleDelay = 0.15 * fps;
@@ -39,9 +41,9 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
         component={titleComponent}
         style={{
           position: 'absolute',
-          left: 120,
-          top: 96,
-          width: 840,
+          left: pad,
+          top: height * 0.05,
+          width: width - pad * 2,
           zIndex: 30,
           ...resolveMotionStyle({component: titleComponent, frame, fps, order: 0, isTitle: true})
         }}
@@ -57,14 +59,14 @@ export const BasicDiagram: React.FC<{scene: RemotionSceneSpec}> = ({scene}) => {
         <div
           style={{
             position: 'absolute',
-            left: 130,
-            bottom: 110,
-            width: 820,
+            left: pad,
+            bottom: height * 0.058,
+            width: width - pad * 2 - 10,
             background: 'rgba(22,32,51,0.78)',
             color: '#fff',
-            padding: '22px 32px',
+            padding: `${height * 0.012}px ${width * 0.03}px`,
             borderRadius: 26,
-            fontSize: 32,
+            fontSize: Math.round(width * 0.03),
             fontWeight: 750,
             lineHeight: 1.3,
             textAlign: 'center',

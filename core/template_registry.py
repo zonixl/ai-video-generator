@@ -12,6 +12,7 @@ class TemplateInfo:
     description: str        # 给 AI 选择用的描述
     needs_image: bool       # 是否需要文生图
     category: str           # image / static
+    image_size: str = ""    # 图片尺寸提示：full / card / ""
 
 
 TEMPLATES: dict[str, TemplateInfo] = {
@@ -32,30 +33,35 @@ TEMPLATES: dict[str, TemplateInfo] = {
         description="全屏背景图：AI生成图片铺满屏幕，标题居中大字叠加，底部字幕半透明条，适合风景/故事/宏大主题",
         needs_image=True,
         category="image",
+        image_size="full",
     ),
     "image_elegant": TemplateInfo(
         name="image_elegant",
         description="雅致插画：暖色背景+渐变光晕装饰，上方居中圆角AI插画，下方排版文字，适合人文/哲理/情感类",
         needs_image=True,
         category="image",
+        image_size="card",
     ),
     "image_card": TemplateInfo(
         name="image_card",
         description="信息卡片：背景渐变+几何装饰，中央卡片内含AI插画，标题在卡片上方，字幕在卡片下方，适合科普/知识/解读类",
         needs_image=True,
         category="image",
+        image_size="card",
     ),
     "image_modern": TemplateInfo(
         name="image_modern",
         description="现代科技：深色背景+几何线条，中央半透明玻璃卡片内AI插画，标题在卡片上方，适合科技/商业/趋势类",
         needs_image=True,
         category="image",
+        image_size="card",
     ),
     "image_neon": TemplateInfo(
         name="image_neon",
         description="霓虹赛博：暗色底+霓虹渐变光晕，上方AI插画，下方粗体大字+荧光色高亮，适合潮流/游戏/音乐/年轻化内容",
         needs_image=True,
         category="image",
+        image_size="card",
     ),
 }
 
@@ -78,6 +84,11 @@ def all_template_names() -> list[str]:
 def image_templates() -> list[str]:
     """返回需要图片的模板名称。"""
     return [name for name, info in TEMPLATES.items() if info.needs_image]
+
+
+def get_image_size(template_name: str) -> str:
+    """获取模板的图片尺寸类型：full / card / 空字符串。"""
+    return get_template(template_name).image_size
 
 
 def static_templates() -> list[str]:

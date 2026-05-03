@@ -68,6 +68,9 @@ remotion:
 kinetic:
 	uv run python main.py produce-remotion --kinetic $(ARGS)
 
+landscape:
+	uv run python main.py produce-remotion --orientation landscape $(ARGS)
+
 review:
 	uv run python main.py review-video $(ARGS)
 

@@ -202,7 +202,7 @@ MIMO_STYLES["温柔亲切"] = (
 MIMO_STYLES["娓娓道来"] = (
     "角色：一个很会讲故事的人，正在饭桌上跟朋友分享一件有意思的事。"
     "指导：语调要有明显的起伏，像波浪一样有高有低。关键情节处加快语速制造悬念，讲到结果时突然放慢让人注意听。"
-    "偶尔加一个轻微的[轻笑]或[停顿]让节奏有呼吸感。整体听起来像在聊天，不是一个字一个字往外蹦。"
+    "整体听起来像在聊天，不是一个字一个字往外蹦。"
 )
 MIMO_STYLES["严肃沉稳"] = (
     "角色：一个资深的行业前辈，在认真地说一个被很多人忽视的事实。不是吓唬人，是郑重其事。"
@@ -211,7 +211,7 @@ MIMO_STYLES["严肃沉稳"] = (
 )
 MIMO_STYLES["兴奋激动"] = (
     "角色：刚查到一个特别惊喜的结果，忍不住马上告诉同事。音量比平时大一点，但不是喊叫。"
-    "指导：语速偏快但不要急到咬字不清。句尾可以微微上扬带出兴奋感。在感叹词或关键数字上可以加一点轻微的[笑]。"
+    "指导：语速偏快但不要急到咬字不清。句尾可以微微上扬带出兴奋感。"
     "音色明亮有穿透力，像阳光晒进来一样。不要播音腔，就是真实的开心。"
 )
 MIMO_STYLES["急促紧张"] = (
@@ -222,7 +222,7 @@ MIMO_STYLES["急促紧张"] = (
 MIMO_STYLES["低沉神秘"] = (
     "角色：像在黑暗的房间里，对着一小群人讲一个鲜为人知的秘密。声音不大，但每个字都让人想听下去。"
     "指导：发声通道非常松弛，气声比例比平时高。语速偏慢，尾音可以微微拖一点营造氛围。"
-    "在关键信息前留一个稍长的停顿制造悬念。整体像深夜电台的低语。"
+    "整体像深夜电台的低语。"
 )
 MIMO_STYLES["叙事平缓"] = (
     "角色：一个短视频创作者，对着镜头用最自然的方式分享一个观点。不是在念稿，是在跟屏幕那边的人聊天。"
@@ -237,6 +237,15 @@ class MiMoProvider(TTSProvider):
 
     provider_name = "mimo"
 
+    # 硬性约束：每条 style 指令末尾都附加，防止 TTS 自由发挥
+    _HARD_RULES = (
+        "【硬性约束】严格朗读给定文本，一个字都不能多、不能少、不能改。"
+        "不要添加任何语气词（嗯、啊、哦、哈等）。"
+        "不要添加笑声、叹气等额外声音。"
+        "句间停顿不超过0.3秒，不要出现超过0.5秒的空白。"
+        "不要即兴发挥，不要总结，不要收尾语。"
+    )
+
     def __init__(self, *, base_url: str, api_key: str, model: str):
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
@@ -249,8 +258,8 @@ class MiMoProvider(TTSProvider):
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # 根据 AI 指定的 emotion 构建导演模式风格指令
-        style_instruction = MIMO_STYLES.get(emotion, MIMO_DEFAULT_STYLE)
+        # 根据 AI 指定的 emotion 构建导演模式风格指令 + 硬性约束
+        style_instruction = MIMO_STYLES.get(emotion, MIMO_DEFAULT_STYLE) + self._HARD_RULES
         # 用更丰富的标签组合，而非单一情绪词
         tag_map = {
             "自信坚定": "自信 从容 亲切",

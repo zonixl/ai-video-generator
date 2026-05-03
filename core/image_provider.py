@@ -18,7 +18,7 @@ class ImageProvider(ABC):
     """图片生成抽象接口。"""
 
     @abstractmethod
-    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int) -> ImageAsset:
+    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int, template: str = "") -> ImageAsset:
         ...
 
 
@@ -27,7 +27,7 @@ class PlaceholderImageProvider(ImageProvider):
 
     provider_name = "placeholder"
 
-    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int) -> ImageAsset:
+    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int, template: str = "") -> ImageAsset:
         try:
             from PIL import Image, ImageDraw, ImageFont
         except ImportError as exc:
@@ -169,22 +169,23 @@ class ArkSeedreamImageProvider(ImageProvider):
         self._client = client
         self._downloader = downloader or self._download_url
 
-    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int) -> ImageAsset:
+    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int, template: str = "") -> ImageAsset:
         if not self._api_key:
             raise RuntimeError("ArkSeedreamImageProvider 需要配置 image_gen.api_key 或 ARK_API_KEY")
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         image_path = output_dir / scene_filename(scene.index, ".png")
-        prompt = self._build_prompt(scene, width, height)
+        prompt = self._build_prompt(scene, width, height, template)
+        size = self._size_for_template(width, height, template)
         logger.info(
-            "Ark Seedream image start: scene=%03d model=%s size=%s prompt_len=%d",
-            scene.index, self._model, self._size, len(prompt),
+            "Ark Seedream image start: scene=%03d model=%s size=%s template=%s prompt_len=%d",
+            scene.index, self._model, size, template, len(prompt),
         )
         response = self._client_or_create().images.generate(
             model=self._model,
             prompt=prompt,
-            size=self._size,
+            size=size,
             response_format="url",
             extra_body={"watermark": self._watermark},
         )
@@ -212,13 +213,36 @@ class ArkSeedreamImageProvider(ImageProvider):
         )
         return self._client
 
-    def _build_prompt(self, scene: Scene, width: int, height: int) -> str:
+    def _build_prompt(self, scene: Scene, width: int, height: int, template: str = "") -> str:
+        orientation = "横屏" if width > height else "竖屏"
+        from core.template_registry import get_image_size
+        img_size = get_image_size(template)
+        if img_size == "full":
+            # image_full：文字直接叠在图片上，画面必须留出深色区域
+            style_hint = (
+                "全屏背景构图。画面上方1/3和底部1/4区域必须偏暗或有深色渐变遮罩，"
+                "确保白色文字叠上去清晰可读。中间区域为主体。"
+                "整体电影感，有明暗层次。"
+            )
+        else:
+            # 卡片模板：图片在卡片内，文字在图片下方，不重叠
+            style_hint = "主体居中，适合裁剪为卡片封面，干净背景，色彩鲜明"
         return (
             f"{scene.image_prompt}\n"
             f"画面描述：{scene.visual}\n"
-            f"画幅：竖屏 {width}x{height}，高清，电影感构图，干净背景。\n"
-            "限制：不要文字，不要字幕，不要 logo，不要水印，不要二维码。"
+            f"画幅：{orientation} {width}x{height}，高清。{style_hint}\n"
+            "限制：不要文字，不要字幕，不要 logo，不要水印，不要二维码，不要人物面部文字。"
         )
+
+    def _size_for_template(self, width: int, height: int, template: str) -> str:
+        """根据模板类型决定图片尺寸。"""
+        from core.template_registry import get_image_size
+        img_size = get_image_size(template)
+        if img_size == "full":
+            # image_full 模板：图片铺满整个视频帧，用视频实际尺寸
+            return f"{width}x{height}"
+        # 卡片模板：用默认尺寸（2K），CSS 负责裁剪
+        return self._size
 
     def _download_url(self, url: str, output_path: Path) -> None:
         with urlopen(url, timeout=self._timeout) as response:

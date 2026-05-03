@@ -77,47 +77,61 @@ class AIRemotionPlanner:
             logger.info("Template forced by user: %s", chosen_template)
 
         for scene in base_plan.scenes:
-            # 构建模板提示
-            if chosen_template:
-                template_hint = f"\n- 必须使用模板：{chosen_template}（整个视频统一风格）"
-            else:
-                template_hint = "\n- 这是第一个 scene，你选择的模板将用于整个视频的所有 scene，请慎重选择"
-
-            user_prompt = prompts.PLAN_REMOTION_SCENE.format(
-                title=base_plan.title,
-                width=width,
-                height=height,
-                fps=fps,
-                index=scene.index,
-                duration=scene.duration,
-                subtitle=scene.subtitle,
-                visual=scene.visual,
-            ) + template_hint
-
             try:
-                response = self._mgr.generate(
-                    self._instance_name,
-                    user_prompt,
-                    system_prompt=prompts.SYSTEM_REMOTION_DESIGNER,
-                )
-                remotion_scene = scene_from_dict(json.loads(self._extract_json(response)), scene.index)
+                # --- Stage 1: 选模板（仅第一个 scene） ---
+                if chosen_template is None:
+                    select_prompt = prompts.SELECT_REMOTION_TEMPLATE.format(
+                        subtitle=scene.subtitle,
+                        visual=scene.visual or "",
+                    )
+                    resp = self._mgr.generate(
+                        self._instance_name,
+                        select_prompt,
+                        system_prompt=prompts.SYSTEM_REMOTION_DESIGNER,
+                    )
+                    chosen_template = self._parse_template(resp)
+                    logger.info("Video template chosen: %s (from scene %03d)", chosen_template, scene.index)
+
+                # --- Stage 2: 按模板类型生成 ---
+                if chosen_template == "kinetic_text":
+                    # kinetic 只输出骨架，实际动画由 kinetic_planner 填充
+                    remotion_scene = self._build_kinetic_stub(scene, chosen_template)
+                elif chosen_template.startswith("image_"):
+                    prompt = prompts.PLAN_REMOTION_IMAGE.format(
+                        index=scene.index,
+                        duration=scene.duration,
+                        subtitle=scene.subtitle,
+                    )
+                    resp = self._mgr.generate(
+                        self._instance_name,
+                        prompt,
+                        system_prompt=prompts.SYSTEM_REMOTION_DESIGNER,
+                    )
+                    data = json.loads(self._extract_json(resp))
+                    data["template"] = chosen_template
+                    remotion_scene = scene_from_dict(data, scene.index)
+                else:  # basic_diagram
+                    prompt = prompts.PLAN_REMOTION_COMPONENTS.format(
+                        index=scene.index,
+                        duration=scene.duration,
+                        subtitle=scene.subtitle,
+                    )
+                    resp = self._mgr.generate(
+                        self._instance_name,
+                        prompt,
+                        system_prompt=prompts.SYSTEM_REMOTION_DESIGNER,
+                    )
+                    data = json.loads(self._extract_json(resp))
+                    data["template"] = chosen_template
+                    remotion_scene = scene_from_dict(data, scene.index)
+
                 remotion_scene.scene_index = scene.index
                 remotion_scene.duration = scene.duration
                 remotion_scene.subtitle = remotion_scene.subtitle or scene.subtitle
                 remotion_scene.visual = remotion_scene.visual or scene.visual
-
-                # 第一个 scene：记住模板选择
-                if chosen_template is None:
-                    chosen_template = remotion_scene.template
-                    logger.info("Video template chosen: %s (from scene %03d)", chosen_template, scene.index)
-                else:
-                    # 后续 scene：强制使用同一模板
-                    if remotion_scene.template != chosen_template:
-                        logger.debug("Scene %03d: overriding template %s -> %s",
-                                     scene.index, remotion_scene.template, chosen_template)
-                    remotion_scene.template = chosen_template
-
+                remotion_scene.template = chosen_template
                 scenes.append(remotion_scene)
+
             except Exception:
                 logger.warning("AI Remotion planning failed for scene %03d; using fallback", scene.index, exc_info=True)
                 fallback_video = self._fallback.plan(scene.subtitle, title=base_plan.title, width=width, height=height, fps=fps)
@@ -130,6 +144,31 @@ class AIRemotionPlanner:
                 scenes.append(fallback_scene)
 
         return RemotionVideoSpec(base_plan.title, width, height, fps, scenes)
+
+    def _parse_template(self, text: str) -> str:
+        """从 AI 响应中提取模板名。"""
+        text = text.strip()
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+        start = text.find("{")
+        end = text.rfind("}")
+        if start < 0 or end < start:
+            raise ValueError("No JSON object found in template selection response")
+        data = json.loads(text[start:end + 1])
+        template = data.get("template", "basic_diagram")
+        if template not in set(all_template_names()):
+            logger.warning("AI selected unknown template '%s', falling back to basic_diagram", template)
+            return "basic_diagram"
+        return template
+
+    def _build_kinetic_stub(self, scene, template: str) -> RemotionSceneSpec:
+        """kinetic_text 模板的骨架，实际动画由 kinetic_planner 填充。"""
+        return RemotionSceneSpec(
+            scene_index=scene.index,
+            duration=scene.duration,
+            template=template,
+            subtitle=scene.subtitle,
+        )
 
     def _extract_json(self, text: str) -> str:
         text = text.strip()

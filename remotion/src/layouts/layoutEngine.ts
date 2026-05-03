@@ -26,31 +26,41 @@ const complexTypes = new Set<ComponentSpec['type']>([
   'progress'
 ]);
 
-const regions: Record<string, React.CSSProperties> = {
-  left_top: {left: 120, top: 430, width: 390, height: 220},
-  right_top: {left: 570, top: 430, width: 390, height: 220},
-  left_bottom: {left: 120, top: 850, width: 390, height: 220},
-  right_bottom: {left: 570, top: 850, width: 390, height: 220},
-  // arrow below both cards (two_column_compare) or between vertical items
-  center: {left: 440, top: 670, width: 200, height: 70},
-  bottom: {left: 150, top: 800, width: 780, height: 180},
-  // vertical_flow: stacked top-to-bottom
-  v_top: {left: 240, top: 440, width: 600, height: 170},
-  v_mid: {left: 380, top: 630, width: 320, height: 70},
-  v_bot: {left: 240, top: 720, width: 600, height: 170},
-  // wide slots for timeline/chart layouts
-  wide_top: {left: 140, top: 390, width: 800, height: 360},
-  wide_middle: {left: 140, top: 820, width: 800, height: 300},
-  wide_bottom: {left: 150, top: 1180, width: 780, height: 240},
-  focus: {left: 150, top: 440, width: 780, height: 500},
-  quote: {left: 150, top: 840, width: 780, height: 260}
+/** 生成响应式 regions — 所有值按视频实际宽高比例计算 */
+const buildRegions = (w: number, h: number): Record<string, React.CSSProperties> => {
+  const pad = w * 0.11;          // 左右内边距
+  const gap = w * 0.03;          // 列间距
+  const col = (w - pad * 2 - gap) / 2;
+  const topOffset = h * 0.22;    // 标题下方区域起始
+  const rowH = h * 0.115;
+  const rowGap = h * 0.02;
+
+  return {
+    left_top:    {left: pad,              top: topOffset,                          width: col, height: rowH},
+    right_top:   {left: pad + col + gap,  top: topOffset,                          width: col, height: rowH},
+    left_bottom: {left: pad,              top: topOffset + rowH + rowGap * 2,      width: col, height: rowH},
+    right_bottom:{left: pad + col + gap,  top: topOffset + rowH + rowGap * 2,      width: col, height: rowH},
+    center:      {left: w * 0.35,         top: topOffset + rowH + rowGap * 0.5,    width: w * 0.3, height: rowH * 0.4},
+    bottom:      {left: pad,              top: h * 0.42,                           width: w - pad * 2, height: h * 0.095},
+    v_top:       {left: w * 0.22,         top: topOffset,                          width: w * 0.56, height: rowH},
+    v_mid:       {left: w * 0.35,         top: topOffset + rowH + rowGap,          width: w * 0.3, height: rowH * 0.4},
+    v_bot:       {left: w * 0.22,         top: topOffset + rowH * 2 + rowGap * 2,  width: w * 0.56, height: rowH},
+    wide_top:    {left: pad,              top: topOffset,                          width: w - pad * 2, height: h * 0.19},
+    wide_middle: {left: pad,              top: h * 0.43,                           width: w - pad * 2, height: h * 0.16},
+    wide_bottom: {left: pad,              top: h * 0.62,                           width: w - pad * 2, height: h * 0.13},
+    focus:       {left: pad,              top: topOffset,                          width: w - pad * 2, height: h * 0.26},
+    quote:       {left: pad,              top: h * 0.44,                           width: w - pad * 2, height: h * 0.14},
+  };
 };
 
-export const resolveSceneLayout = (scene: RemotionSceneSpec): ResolvedScene => {
+export const resolveSceneLayout = (scene: RemotionSceneSpec, width?: number, height?: number): ResolvedScene => {
+  const w = width ?? 1080;
+  const h = height ?? 1920;
+  const regions = buildRegions(w, h);
   const background = scene.components.find((component) => component.type === 'background_pattern');
   const layout = scene.layout ?? inferLayout(scene.components);
   const normalized = normalizeComponents(scene.components.filter((component) => component.type !== 'background_pattern'));
-  const items = assignLayoutItems(normalized, layout);
+  const items = assignLayoutItems(normalized, layout, regions);
 
   return {
     headline: normalizeHeadline(scene.headline),
@@ -60,7 +70,19 @@ export const resolveSceneLayout = (scene: RemotionSceneSpec): ResolvedScene => {
   };
 };
 
-const assignLayoutItems = (components: ComponentSpec[], layout: SceneLayout): LayoutItem[] => {
+const assignLayoutItems = (components: ComponentSpec[], layout: SceneLayout, regions: Record<string, React.CSSProperties>): LayoutItem[] => {
+  const place = (comps: ComponentSpec[], slots: string[], orderOffset: number): LayoutItem[] =>
+    comps.map((component, index) => ({
+      component,
+      order: orderOffset + index,
+      style: {
+        position: 'absolute' as const,
+        ...(regions[slots[index] ?? slots[slots.length - 1]] ?? regions.bottom),
+        boxSizing: 'border-box' as const,
+        zIndex: 10 + orderOffset + index
+      }
+    }));
+
   // vertical_flow: cards stacked top→bottom, arrow in between pointing down
   if (layout === 'vertical_flow') {
     const arrow = components.find((component) => component.type === 'arrow');
@@ -115,18 +137,6 @@ const assignLayoutItems = (components: ComponentSpec[], layout: SceneLayout): La
 
   return place(components, ['left_top', 'right_top', 'left_bottom', 'right_bottom', 'bottom'], 0);
 };
-
-const place = (components: ComponentSpec[], slots: string[], orderOffset: number): LayoutItem[] =>
-  components.map((component, index) => ({
-    component,
-    order: orderOffset + index,
-    style: {
-      position: 'absolute' as const,
-      ...(regions[slots[index] ?? slots[slots.length - 1]] ?? regions.bottom),
-      boxSizing: 'border-box' as const,
-      zIndex: 10 + orderOffset + index
-    }
-  }));
 
 const inferLayout = (components: ComponentSpec[]): SceneLayout => {
   if (components.some((component) => component.type === 'quote' || component.type === 'lower_third')) {

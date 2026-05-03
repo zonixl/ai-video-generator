@@ -1,0 +1,50 @@
+## 任务
+为 basic_diagram 模板设计组件布局和入场动画。只输出一个 scene 的 JSON。
+
+## 可用布局（选一个）
+- two_column_compare：左右对比
+- vertical_flow：上下排列，箭头连接
+- center_focus：核心组件居中强调
+- top_title_bottom_chart：上图表下解释
+- timeline_vertical：流程/步骤/列表
+
+## 可用组件（选 3-5 个）
+- card：信息卡片，文字 2-10 字，建议选一个 icon
+- arrow：连接箭头，slot 通常为 center
+- badge：强调标签
+- metric：指标卡，text 格式为 `大数字|说明`
+- comparison：前后对比，text 格式为 `之前|百分比|之后|百分比`
+
+## 可用 variant：default / primary / success / danger / warning / muted
+## 可用 motion：fade_in / slide_in / pop / draw / strike / pulse / none
+## 可用 icon：sparkles / brain / check / x / zap / target / layers
+
+## 规则
+1. 组件 3-5 个，卡片文字 2-10 字
+2. headline 必须是本镜专属要点，不要抄视频总标题
+3. danger + strike + x 表达否定，success + pop + check 表达肯定
+4. 不要让多个大组件竞争同一区域
+5. tts_emotion 选一个：自信坚定 / 温柔亲切 / 娓娓道来 / 严肃沉稳 / 兴奋激动 / 急促紧张 / 低沉神秘 / 叙事平缓
+
+## 输出 JSON 格式
+{{
+  "scene_index": 1,
+  "duration": 5.0,
+  "template": "basic_diagram",
+  "theme": "warm_grid",
+  "layout": "two_column_compare",
+  "headline": "本镜专属要点",
+  "subtitle": "字幕文本",
+  "tts_emotion": "自信坚定",
+  "components": [
+    {{"id": "c1", "type": "card", "slot": "left_top", "text": "问题", "variant": "danger", "motion": "strike", "icon": "x"}},
+    {{"id": "a1", "type": "arrow", "slot": "center", "text": "转化", "variant": "default", "motion": "draw"}},
+    {{"id": "c2", "type": "card", "slot": "right_top", "text": "方案", "variant": "success", "motion": "pop", "icon": "check"}}
+  ]
+}}
+
+## 分镜信息
+- 序号：{index}  时长：{duration} 秒
+- 字幕：{subtitle}
+
+请只输出 JSON：

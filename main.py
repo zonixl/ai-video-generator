@@ -307,14 +307,21 @@ def cmd_produce_remotion(args):
     refine_enabled = args.refine or args.step == "refine" or cfg.remotion_refine_enabled
     # --template kinetic_text 自动启用 kinetic planner
     kinetic = args.kinetic or args.template == "kinetic_text"
+    # --orientation 预设宽高，--width/--height 优先级更高
+    width = args.width
+    height = args.height
+    if args.orientation == "portrait" and not width and not height:
+        width, height = 1080, 1920
+    elif args.orientation == "landscape" and not width and not height:
+        width, height = 1920, 1080
     pipeline = build_produce_remotion_pipeline(cfg, render_only=args.step in {"render", "refine"}, refine_enabled=refine_enabled, kinetic=kinetic)
     result = pipeline.run(
         args.script,
         job_id=args.job_id,
         output_path=args.output,
         title=args.title,
-        width=args.width,
-        height=args.height,
+        width=width,
+        height=height,
         fps=args.fps,
         step=args.step,
         force=args.force,
@@ -494,6 +501,7 @@ def main():
     p_remotion.add_argument("--title", default=None, help="视频标题（可选）")
     p_remotion.add_argument("--width", type=int, default=None, help="视频宽度，默认读取配置")
     p_remotion.add_argument("--height", type=int, default=None, help="视频高度，默认读取配置")
+    p_remotion.add_argument("--orientation", choices=("portrait", "landscape"), default=None, help="预设画幅：portrait(1080x1920) / landscape(1920x1080)，--width/--height 会覆盖此预设")
     p_remotion.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
     p_remotion.add_argument(
         "--step",
