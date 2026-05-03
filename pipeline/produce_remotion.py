@@ -59,6 +59,7 @@ class ProduceRemotionPipeline:
         refine: bool = False,
         refine_rounds: int | None = None,
         review_only: bool = False,
+        template: str | None = None,
     ) -> RemotionProduceResult:
         if step not in REMOTION_STEPS:
             raise ValueError(f"Unknown Remotion step: {step}. Available: {REMOTION_STEPS}")
@@ -87,6 +88,7 @@ class ProduceRemotionPipeline:
             fps=fps,
             step=step,
             force=force,
+            template=template,
         )
 
         # ---- Step: tts ----
@@ -145,6 +147,7 @@ class ProduceRemotionPipeline:
                         index=scene.scene_index,
                         duration=scene.duration,
                         subtitle=scene.subtitle,
+                        narration=scene.subtitle,
                         visual=scene.visual or scene.subtitle,
                         image_prompt=prompt,
                     )
@@ -221,6 +224,7 @@ class ProduceRemotionPipeline:
         fps: int,
         step: str,
         force: bool,
+        template: str | None = None,
     ) -> RemotionVideoSpec:
         if input_path.exists() and not force:
             logger.info("[1/*] Loading existing Remotion input: %s", input_path)
@@ -232,7 +236,7 @@ class ProduceRemotionPipeline:
 
         logger.info("[1/*] Planning Remotion component video ...")
         script = read_text(script_path)
-        spec = self._planner.plan(script, title=title, width=width, height=height, fps=fps)
+        spec = self._planner.plan(script, title=title, width=width, height=height, fps=fps, template=template)
         write_json(input_path, to_dict(spec))
         logger.info("      -> %s (%d scenes, %.1fs)", input_path, len(spec.scenes), spec.total_duration)
         return spec

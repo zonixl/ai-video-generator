@@ -1,0 +1,54 @@
+## 任务
+审查这些 Remotion 视频关键帧，判断是否存在画面拥挤、组件遮挡、文字溢出、乱码、标题/字幕被挡、复杂组件过多或动画阶段导致的重叠。
+
+## 当前 Remotion DSL
+{spec_json}
+
+## 允许输出的 patch 字段
+- layout：只能是 auto / two_column_compare / center_focus / top_title_bottom_chart / timeline_vertical / quote_focus
+- theme：只能是 warm_grid / dark_grid / clean
+- remove_component_ids：删除低价值组件 ID 列表
+- replace_component_type：按组件 ID 替换为受控组件 type
+- shorten_text：按组件 ID 缩短 text
+- set_motion：按组件 ID 修改 motion
+- set_variant：按组件 ID 修改 variant
+- limit_components：限制该 scene 保留的组件数量，1-4
+
+## 禁止
+1. 禁止输出 React/CSS/坐标/文件路径。
+2. 禁止新增未知组件 type。
+3. 禁止要求人工查看。
+4. 禁止输出 Markdown 代码块。
+
+## 判断标准
+1. 组件不能重叠，不能遮挡标题和字幕。
+2. 字幕、标题、卡片文字必须可读。
+3. 单个 scene 不应塞太多组件。
+4. 图表、进度条、通知堆叠这类复杂组件通常每镜最多一个。
+5. 如果画面拥挤，优先删除低价值组件或切换 layout，而不是建议自由调整坐标。
+
+## 输出 JSON 格式
+{{
+  "pass": false,
+  "score": 72,
+  "issues": [
+    {{
+      "type": "overlap",
+      "severity": "high",
+      "scene_index": 1,
+      "reason": "底部组件与图表距离过近",
+      "suggestion": "删除低价值组件并切换为 center_focus"
+    }}
+  ],
+  "patches": [
+    {{
+      "scene_index": 1,
+      "layout": "center_focus",
+      "remove_component_ids": ["notice"],
+      "shorten_text": {{"lower": "趋势上升|保留一个图表"}},
+      "limit_components": 2
+    }}
+  ]
+}}
+
+请只输出 JSON：

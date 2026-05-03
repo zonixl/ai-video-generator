@@ -1,0 +1,165 @@
+## 任务
+把下面这个短视频分镜转换成 Remotion 视频 JSON。只做一个 scene。
+
+## 可用模板（必须从中选择一个）
+[需配图] 的模板会自动生成 AI 插画作为背景，你需要提供 visual（英文画面描述）。
+[纯文字] 的模板不需要图片，用组件和动画表达内容。
+
+- basic_diagram [纯文字]：图示卡片动画——卡片、箭头、指标、图表等组件的入场动画。适合数据/流程/对比/步骤类内容。
+- kinetic_text [纯文字]：逐词灵动文字——文字逐词弹出、上浮、翻转消失。适合金句/观点/短文案/情感类内容。
+- image_full [需配图]：全屏背景图——AI 图片铺满屏幕，大字标题叠加。适合风景/故事/宏大主题/纪录片类。
+- image_elegant [需配图]：雅致插画——暖色背景+渐变光晕，居中圆角 AI 插画。适合人文/哲理/情感/成长类。
+- image_card [需配图]：信息卡片——渐变背景+中央卡片内含 AI 插画。适合科普/知识/解读/教育类。
+- image_modern [需配图]：现代科技——深色背景+玻璃卡片内含 AI 插画。适合科技/商业/趋势/互联网类。
+- image_neon [需配图]：霓虹赛博——暗色底+霓虹光晕+AI 插画。适合潮流/游戏/音乐/年轻化/娱乐类。
+
+## 模板选择规则
+1. 如果内容偏数据、流程、对比、逻辑推理 → basic_diagram
+2. 如果内容偏金句、观点、短文案、情绪表达 → kinetic_text
+3. 如果内容偏故事、画面感强、需要场景氛围 → 选择 image_* 模板
+4. image_* 模板之间，根据内容调性选择：
+   - 大气/史诗/自然 → image_full
+   - 优雅/文艺/哲理 → image_elegant
+   - 专业/科普/教育 → image_card
+   - 科技/商业/前沿 → image_modern
+   - 潮流/年轻/酷炫 → image_neon
+5. 同一视频的不同 scene 可以使用不同模板（混合搭配效果更好）
+
+## 可用 layout
+- auto：默认自动布局，系统会二次归一化避免重叠
+- two_column_compare：左右对比，箭头放在卡片下方避免重叠
+- vertical_flow：上下排列，中间箭头向下连接，适合箭头+双卡片场景（首选）
+- center_focus：一个核心组件居中强调
+- top_title_bottom_chart：顶部放图表/数据，底部放解释
+- timeline_vertical：流程、步骤、列表
+- quote_focus：观点、引用、下三分之一说明
+
+## 可用组件 type
+- title：标题文本
+- card：信息卡片
+- arrow：连接箭头
+- badge：强调标签
+- text：普通文字
+- metric：指标卡，text 格式为 `大数字|说明`
+- step：时间线/流程步骤
+- stat_counter：动态数字计数，text 格式为 `数字|说明|后缀`
+- progress：多进度条，text 格式为 `标签:百分比;标签:百分比`
+- list：动画列表，text 格式为 `要点1;要点2;要点3`
+- quote：引用观点卡，text 格式为 `观点|署名`
+- bar_chart：柱状图，text 格式为 `标签:数值;标签:数值`
+- line_chart：折线图，text 格式为 `标签:数值;标签:数值`
+- donut_chart：环形占比，text 格式为 `百分比|说明`
+- comparison：前后对比，text 格式为 `之前标签|之前百分比|之后标签|之后百分比`
+- circular_progress：圆形进度，text 格式为 `百分比|说明`
+- highlight_text：关键词高亮，text 格式为 `词1;词2;词3`
+- typewriter：打字机文本，text 是一句短句
+- progress_steps：流程步骤，text 格式为 `步骤1;步骤2;步骤3`
+- notification：通知堆叠，text 格式为 `通知1;通知2;通知3`
+- background_pattern：背景几何图案，text 可为空；每个 scene 最多一个
+- lower_third：下三分之一说明条，text 格式为 `标题|副标题`
+
+## 可用 slot
+- title
+- left_top
+- left_bottom
+- right_top
+- right_bottom
+- center
+- bottom
+- caption
+
+## 可用 variant
+- default
+- primary
+- success
+- danger
+- warning
+- muted
+
+## 可用 motion
+- fade_in
+- slide_in
+- pop
+- draw
+- strike
+- pulse
+- none
+
+## 可用 icon
+- sparkles
+- brain
+- workflow
+- image
+- video
+- audio
+- check
+- x
+- zap
+- target
+- layers
+- code
+- settings
+
+## 规则
+1. 禁止人物镜头，禁止写实人物，优先用图示、卡片、箭头、标签、指标、步骤、计数器、进度条、列表、引用卡、图表模板。
+2. 只能使用上面列出的 layout、type、slot、variant、motion、icon。
+3. 必须选择一个 layout。slot 只是语义参考，最终布局会由系统归一化。
+4. 组件数量控制在 3-5 个（宁多勿少），复杂图表模板最多 1 个。每个 scene 必须填满视觉空间。
+5. 文案要短，卡片文字尽量 2-10 个字。
+6. 每个 card、badge、metric、step 尽量选择一个 icon，arrow 可以不选 icon。
+7. 如果表达"替换、否定、废弃"，可用 danger + strike + x。
+8. 如果表达"结果、目标、升级"，可用 success + pop + check/target。
+9. 如果表达流程，优先使用 timeline_vertical + progress_steps/list/step。
+10. 如果表达数据、效率、成本、比例，优先使用 top_title_bottom_chart + 一个图表模板。
+11. 如果表达强调观点，优先使用 quote_focus + highlight_text/typewriter/quote/lower_third。
+12. 不要让多个大组件竞争同一区域，不要输出长段文字。
+13. 输出严格 JSON 对象，不要包含 ```json。
+14. **关键：headline 必须反映本镜专属要点，严禁照抄视频总标题 {title}。每镜 headline 应不同。**
+15. **tts_emotion：根据画面内容，选择合适的朗读语气 — 自信坚定 / 温柔亲切 / 娓娓道来 / 严肃沉稳 / 兴奋激动 / 急促紧张 / 低沉神秘 / 叙事平缓**
+16. 选择 image_* 模板时，必须输出 visual 字段（英文，适合文生图模型的画面描述），components 可以为空数组。
+17. 选择 basic_diagram / kinetic_text 模板时，visual 可以省略或为空，必须输出 components。
+
+## 输出 JSON 格式
+basic_diagram / kinetic_text 模板（纯文字模板）：
+{{
+  "scene_index": 1,
+  "duration": 5.0,
+  "template": "basic_diagram",
+  "theme": "warm_grid",
+  "layout": "two_column_compare",
+  "headline": "抓住本质而非表象",
+  "subtitle": "这一镜字幕",
+  "tts_emotion": "自信坚定",
+  "components": [
+    {{"id": "c1", "type": "card", "slot": "left_top", "text": "问题", "variant": "danger", "motion": "strike", "icon": "x"}},
+    {{"id": "a1", "type": "arrow", "slot": "center", "text": "转化", "variant": "default", "motion": "draw"}},
+    {{"id": "c2", "type": "card", "slot": "right_top", "text": "方案", "variant": "success", "motion": "pop", "icon": "check"}},
+    {{"id": "m1", "type": "comparison", "slot": "bottom", "text": "旧方案|34|新方案|89", "variant": "warning", "motion": "slide_in", "icon": "target"}}
+  ]
+}}
+
+image_* 模板（配图模板）：
+{{
+  "scene_index": 1,
+  "duration": 5.0,
+  "template": "image_elegant",
+  "theme": "warm_grid",
+  "headline": "阅读改变命运",
+  "subtitle": "每天读书一小时，一年后你会感谢自己",
+  "visual": "A person sitting in a cozy reading nook by a window, soft golden afternoon light, stack of books, warm atmosphere, cinematic composition",
+  "tts_emotion": "温柔亲切",
+  "components": []
+}}
+
+## 视频参数
+- 标题：{title}
+- 宽高：{width}x{height}
+- FPS：{fps}
+
+## 当前分镜
+- 序号：{index}
+- 时长：{duration}
+- 字幕：{subtitle}
+- 画面描述：{visual}
+
+请只输出 JSON：

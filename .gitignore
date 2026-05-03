@@ -50,3 +50,4 @@ config/config.yaml
 pyaudioop.py
 /.cursor/
 /Pixelle-Video-main/
+/remotion/public/

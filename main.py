@@ -305,7 +305,9 @@ def cmd_produce_remotion(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     refine_enabled = args.refine or args.step == "refine" or cfg.remotion_refine_enabled
-    pipeline = build_produce_remotion_pipeline(cfg, render_only=args.step in {"render", "refine"}, refine_enabled=refine_enabled, kinetic=args.kinetic)
+    # --template kinetic_text 自动启用 kinetic planner
+    kinetic = args.kinetic or args.template == "kinetic_text"
+    pipeline = build_produce_remotion_pipeline(cfg, render_only=args.step in {"render", "refine"}, refine_enabled=refine_enabled, kinetic=kinetic)
     result = pipeline.run(
         args.script,
         job_id=args.job_id,
@@ -320,6 +322,7 @@ def cmd_produce_remotion(args):
         refine=args.refine,
         refine_rounds=args.refine_rounds,
         review_only=args.review_only,
+        template=args.template,
     )
     logger.info("produce-remotion completed: %s", result.video_path)
 
@@ -501,6 +504,7 @@ def main():
     p_remotion.add_argument("--force", action="store_true", help="强制重做 Remotion input")
     p_remotion.add_argument("--tts", action="store_true", default=False, help="启用 TTS 语音合成")
     p_remotion.add_argument("--kinetic", action="store_true", default=False, help="启用逐词动态文字模式")
+    p_remotion.add_argument("--template", default=None, help="强制指定模板（如 kinetic_text, image_elegant 等），不传则 AI 自行决策")
     p_remotion.add_argument("--refine", action="store_true", help="在 all 流程中启用视觉自迭代")
     p_remotion.add_argument("--refine-rounds", type=int, default=None, help="视觉自迭代最大轮数")
     p_remotion.add_argument("--review-only", action="store_true", help="只输出视觉审查报告，不应用 patch")

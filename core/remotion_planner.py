@@ -14,6 +14,7 @@ from core.remotion_schema import (
     scene_from_dict,
 )
 from core.scene_splitter import RuleBasedSceneSplitter
+from core.template_registry import all_template_names
 
 logger = logging.getLogger(__name__)
 
@@ -24,24 +25,25 @@ class RuleBasedRemotionPlanner:
     def __init__(self, splitter: RuleBasedSceneSplitter | None = None):
         self._splitter = splitter or RuleBasedSceneSplitter()
 
-    def plan(self, script: str, *, title: str | None, width: int, height: int, fps: int) -> RemotionVideoSpec:
+    def plan(self, script: str, *, title: str | None, width: int, height: int, fps: int, template: str | None = None) -> RemotionVideoSpec:
         video_plan = self._splitter.split(script, title=title, width=width, height=height, fps=fps)
         scenes = []
         for scene in video_plan.scenes:
-            scenes.append(
-                RemotionSceneSpec(
-                    scene_index=scene.index,
-                    duration=scene.duration,
-                    headline=video_plan.title if scene.index == 1 else f"要点 {scene.index}",
-                    subtitle=scene.subtitle,
-                    components=[
-                        RemotionComponentSpec("main", "card", "left_top", scene.subtitle[:18], "primary", "pop", "brain"),
-                        RemotionComponentSpec("arrow", "arrow", "center", "", "default", "draw"),
-                        RemotionComponentSpec("result", "card", "right_top", "关键结论", "success", "pop", "check"),
-                        RemotionComponentSpec("badge", "badge", "bottom", "AI -> Remotion", "warning", "slide_in", "workflow"),
-                    ],
-                )
+            s = RemotionSceneSpec(
+                scene_index=scene.index,
+                duration=scene.duration,
+                headline=video_plan.title if scene.index == 1 else f"要点 {scene.index}",
+                subtitle=scene.subtitle,
+                components=[
+                    RemotionComponentSpec("main", "card", "left_top", scene.subtitle[:18], "primary", "pop", "brain"),
+                    RemotionComponentSpec("arrow", "arrow", "center", "", "default", "draw"),
+                    RemotionComponentSpec("result", "card", "right_top", "关键结论", "success", "pop", "check"),
+                    RemotionComponentSpec("badge", "badge", "bottom", "AI -> Remotion", "warning", "slide_in", "workflow"),
+                ],
             )
+            if template:
+                s.template = template
+            scenes.append(s)
         return RemotionVideoSpec(video_plan.title, width, height, fps, scenes)
 
 
@@ -61,10 +63,26 @@ class AIRemotionPlanner:
         self._fallback = fallback or RuleBasedRemotionPlanner(splitter=splitter)
         self._splitter = splitter or RuleBasedSceneSplitter()
 
-    def plan(self, script: str, *, title: str | None, width: int, height: int, fps: int) -> RemotionVideoSpec:
+    def plan(self, script: str, *, title: str | None, width: int, height: int, fps: int, template: str | None = None) -> RemotionVideoSpec:
         base_plan = self._splitter.split(script, title=title, width=width, height=height, fps=fps)
         scenes: list[RemotionSceneSpec] = []
+
+        # 用户指定了模板则强制使用，否则由 AI 决定（第一个 scene 决定后统一）
+        valid_templates = all_template_names()
+        if template and template not in valid_templates:
+            logger.warning("Unknown template '%s', valid: %s. Falling back to AI decision.", template, valid_templates)
+            template = None
+        chosen_template: str | None = template
+        if chosen_template:
+            logger.info("Template forced by user: %s", chosen_template)
+
         for scene in base_plan.scenes:
+            # 构建模板提示
+            if chosen_template:
+                template_hint = f"\n- 必须使用模板：{chosen_template}（整个视频统一风格）"
+            else:
+                template_hint = "\n- 这是第一个 scene，你选择的模板将用于整个视频的所有 scene，请慎重选择"
+
             user_prompt = prompts.PLAN_REMOTION_SCENE.format(
                 title=base_plan.title,
                 width=width,
@@ -74,7 +92,8 @@ class AIRemotionPlanner:
                 duration=scene.duration,
                 subtitle=scene.subtitle,
                 visual=scene.visual,
-            )
+            ) + template_hint
+
             try:
                 response = self._mgr.generate(
                     self._instance_name,
@@ -86,6 +105,18 @@ class AIRemotionPlanner:
                 remotion_scene.duration = scene.duration
                 remotion_scene.subtitle = remotion_scene.subtitle or scene.subtitle
                 remotion_scene.visual = remotion_scene.visual or scene.visual
+
+                # 第一个 scene：记住模板选择
+                if chosen_template is None:
+                    chosen_template = remotion_scene.template
+                    logger.info("Video template chosen: %s (from scene %03d)", chosen_template, scene.index)
+                else:
+                    # 后续 scene：强制使用同一模板
+                    if remotion_scene.template != chosen_template:
+                        logger.debug("Scene %03d: overriding template %s -> %s",
+                                     scene.index, remotion_scene.template, chosen_template)
+                    remotion_scene.template = chosen_template
+
                 scenes.append(remotion_scene)
             except Exception:
                 logger.warning("AI Remotion planning failed for scene %03d; using fallback", scene.index, exc_info=True)
@@ -94,6 +125,8 @@ class AIRemotionPlanner:
                 fallback_scene.scene_index = scene.index
                 fallback_scene.duration = scene.duration
                 fallback_scene.subtitle = scene.subtitle
+                if chosen_template:
+                    fallback_scene.template = chosen_template
                 scenes.append(fallback_scene)
 
         return RemotionVideoSpec(base_plan.title, width, height, fps, scenes)

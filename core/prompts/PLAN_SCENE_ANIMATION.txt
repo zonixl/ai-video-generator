@@ -1,0 +1,42 @@
+## 任务
+为下面这个单独分镜设计图片动画编排。注意：这不是分镜脚本任务，只负责动画。
+
+## 可执行动画类型
+- zoom_in：缓慢推进，适合强调主体、制造进入感。
+- zoom_out：缓慢拉远，适合总结、展示全貌。
+- pan_left：画面向左平移，适合流程、时间线、信息展开。
+- pan_right：画面向右平移，适合从问题走向答案。
+- fade：淡入淡出，适合转场、情绪缓和、抽象概念。
+
+## 输出要求
+1. `animation` 必须是上述五个值之一。
+2. `animation_notes` 说明为什么这样编排，以及画面运动节奏。
+3. `animation_params` 给出执行参数，用于后续渲染扩展；只输出数字或短字符串。
+4. 不要修改字幕、口播、画面描述和图片 prompt。
+5. 输出严格 JSON 对象。
+
+## 输出 JSON 格式
+{{
+  "animation": "zoom_in",
+  "animation_notes": "缓慢推进到主体，突出这一镜的核心观点。",
+  "animation_params": {{
+    "start_scale": 1.0,
+    "end_scale": 1.08,
+    "easing": "linear"
+  }}
+}}
+
+## 视频信息
+- 标题：{title}
+- 风格：{style}
+- 画幅：{width}x{height}
+- FPS：{fps}
+
+## 当前分镜
+- 序号：{index}
+- 时长：{duration}
+- 字幕：{subtitle}
+- 画面描述：{visual}
+- 图片 prompt：{image_prompt}
+
+请只输出 JSON：
