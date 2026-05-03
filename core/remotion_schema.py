@@ -34,13 +34,19 @@ class RemotionComponentSpec:
 class RemotionSceneSpec:
     scene_index: int
     duration: float
-    template: Literal["basic_diagram"] = "basic_diagram"
+    template: Literal[
+        "basic_diagram", "kinetic_text",
+        "image_full", "image_elegant", "image_card", "image_modern", "image_neon",
+    ] = "basic_diagram"
     theme: Literal["warm_grid", "dark_grid", "clean"] = "warm_grid"
     layout: SceneLayout | str = "auto"
     headline: str = ""
     subtitle: str = ""
+    visual: str = ""                    # 画面描述，用于文生图
     tts_emotion: str = ""
     components: list[RemotionComponentSpec] = field(default_factory=list)
+    kinetic_config: dict = field(default_factory=dict)
+    image_url: str = ""                 # 生成的图片路径（相对于 remotion/public）
 
 
 @dataclass
@@ -106,15 +112,21 @@ def scene_from_dict(data: dict[str, Any], fallback_index: int) -> RemotionSceneS
     return RemotionSceneSpec(
         scene_index=int(data.get("scene_index") or data.get("index") or fallback_index),
         duration=float(data.get("duration", 5.0)),
-        template="basic_diagram",
+        template=_choice(data.get("template"), {
+            "basic_diagram", "kinetic_text",
+            "image_full", "image_elegant", "image_card", "image_modern", "image_neon",
+        }, "basic_diagram"),
         theme=_choice(data.get("theme"), {"warm_grid", "dark_grid", "clean"}, "warm_grid"),
         layout=_choice(data.get("layout"), {
             "auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"
         }, "auto"),
         headline=str(data.get("headline") or data.get("title") or f"Scene {fallback_index}"),
         subtitle=str(data.get("subtitle", "")),
+        visual=str(data.get("visual", "")),
         tts_emotion=str(data.get("tts_emotion", "")),
         components=components,
+        kinetic_config=data.get("kinetic_config") or {},
+        image_url=str(data.get("image_url", "")),
     )
 
 

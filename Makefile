@@ -1,53 +1,51 @@
+# AI Content Pipeline
+# 用法: make <target> ARGS='...'
+
 help:
-	@cmd /C echo ============================================
-	@cmd /C echo  AI Content Pipeline - Commands
-	@cmd /C echo ============================================
-	@cmd /C echo.
-	@cmd /C echo   make install           install deps
-	@cmd /C echo   make ingest ARGS=...   audio -^> knowledge base
-	@cmd /C echo   make generate ARGS=... topic -^> script
-	@cmd /C echo   make polish ARGS=...   polish a script
-	@cmd /C echo   make produce ARGS=...  script -^> video
-	@cmd /C echo   make produce-remotion ARGS=... script -^> Remotion video
-	@cmd /C echo   make remotion-plan ARGS=... generate Remotion input JSON
-	@cmd /C echo   make remotion-tts JOB=...   add TTS audio + sync durations
-	@cmd /C echo   make remotion-refine JOB=... vision review and patch Remotion JSON
-	@cmd /C echo   make remotion-render JOB=... render existing Remotion job
-	@cmd /C echo   make review-video VIDEO=... review generated mp4 with vision model
-	@cmd /C echo   make remotion-preview     open Remotion Studio
-	@cmd /C echo   make remotion-showcase    render RVE template showcase
-	@cmd /C echo   make remotion-component-showcase render base component showcase
-	@cmd /C echo   make produce-tts JOB=... add TTS and rebuild existing video job
-	@cmd /C echo   make produce-step JOB=... STEP=... rerun one produce step
-	@cmd /C echo   make status            view knowledge base
-	@cmd /C echo   make clear ARGS=...    clear knowledge base
-	@cmd /C echo   make nuke              clear ALL data
-	@cmd /C echo   make test              run tests
-	@cmd /C echo.
-	@cmd /C echo   Debug mode (detailed logs):
-	@cmd /C echo   make debug-ingest ARGS='-i test.mp3'
-	@cmd /C echo   make debug-generate ARGS='-t AI_topic'
-	@cmd /C echo   make debug-produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1'
-	@cmd /C echo.
-	@cmd /C echo   Examples:
-	@cmd /C echo     make ingest ARGS=-i test.mp3
-	@cmd /C echo     make generate ARGS=-t AI_topic
-	@cmd /C echo     make polish ARGS='-i ./outputs/scripts/demo.md -f xxx'
-	@cmd /C echo     make produce ARGS='--script ./outputs/scripts/demo.md --job-id demo1 --no-tts'
-	@cmd /C echo     make produce-remotion ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --tts'
-	@cmd /C echo     make remotion-plan ARGS='--script ./outputs/scripts/demo.md --job-id demo-remotion --force'
-	@cmd /C echo     make remotion-refine JOB=demo-remotion
-	@cmd /C echo     make remotion-render JOB=demo-remotion
-	@cmd /C echo     make review-video VIDEO=outputs/videos/demo.mp4
-	@cmd /C echo     make remotion-preview
-	@cmd /C echo     make remotion-showcase
-	@cmd /C echo     make remotion-component-showcase
-	@cmd /C echo     make produce-tts JOB=demo1
-	@cmd /C echo     make produce-step JOB=demo1 STEP=animation ARGS=--force
-	@cmd /C echo     make produce-step JOB=demo1 STEP=clips ARGS=--force
-	@cmd /C echo     make produce-step JOB=demo1 STEP=compose ARGS='--tts --force'
-	@cmd /C echo     make clear ARGS=--confirm
-	@cmd /C echo     make nuke
+	@if [ -z "$(CMD)" ]; then \
+		echo "============================================"; \
+		echo " AI Content Pipeline"; \
+		echo "============================================"; \
+		echo ""; \
+		echo "  Commands:"; \
+		echo "    make ingest      audio -> knowledge base"; \
+		echo "    make generate    topic -> script"; \
+		echo "    make polish      polish script"; \
+		echo "    make produce     script -> video"; \
+		echo "    make remotion    script -> Remotion diagram video"; \
+		echo "    make kinetic     script -> kinetic text video"; \
+			echo "    make remotion    (image_* 模板会自动配图)"; \
+		echo "    make review      review generated mp4"; \
+		echo "    make status      view knowledge base"; \
+		echo "    make clear       clear knowledge base"; \
+		echo "    make nuke        clear ALL data"; \
+		echo "    make test        run tests"; \
+		echo "    make preview     open Remotion Studio"; \
+		echo ""; \
+		echo "  Usage:"; \
+		echo "    make <target> ARGS='...'     run a command"; \
+		echo "    make help CMD=<target>       view all params of a command"; \
+		echo ""; \
+		echo "  Examples:"; \
+		echo "    make help CMD=generate"; \
+		echo "    make help CMD=remotion"; \
+		echo "    make generate ARGS='-t AI'"; \
+		echo "    make remotion ARGS='--script outputs/scripts/xxx.md --job-id r1 --tts --force'"; \
+		echo "    make kinetic ARGS='--script outputs/scripts/xxx.md --job-id k1 --tts --force'"; \
+	else \
+		case "$(CMD)" in \
+			ingest) uv run python main.py ingest --help ;; \
+			generate) uv run python main.py generate --help ;; \
+			polish) uv run python main.py polish --help ;; \
+			produce) uv run python main.py produce --help ;; \
+			remotion|kinetic) uv run python main.py produce-remotion --help ;; \
+			review) uv run python main.py review-video --help ;; \
+			clear) uv run python main.py clear --help ;; \
+			nuke) uv run python main.py nuke --help ;; \
+			status) uv run python main.py status --help ;; \
+			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic review clear nuke status" ;; \
+		esac \
+	fi
 
 install:
 	uv sync
@@ -64,43 +62,17 @@ polish:
 produce:
 	uv run python main.py produce $(ARGS)
 
-produce-remotion:
+remotion:
 	uv run python main.py produce-remotion $(ARGS)
 
-remotion-plan:
-	uv run python main.py produce-remotion --step plan $(ARGS)
+kinetic:
+	uv run python main.py produce-remotion --kinetic $(ARGS)
 
-remotion-tts:
-	uv run python main.py produce-remotion --job-id $(JOB) --step tts --tts --force $(ARGS)
+review:
+	uv run python main.py review-video $(ARGS)
 
-remotion-refine:
-	uv run python main.py produce-remotion --job-id $(JOB) --step refine $(ARGS)
-
-produce-remotion-refined:
-	uv run python main.py produce-remotion --refine $(ARGS)
-
-remotion-render:
-	uv run python main.py produce-remotion --job-id $(JOB) --step render $(ARGS)
-
-review-video:
-	uv run python main.py review-video --video $(VIDEO) $(ARGS)
-
-remotion-preview:
+preview:
 	@cmd /C "cd remotion && npm run preview"
-
-remotion-showcase:
-	@cmd /C "cd remotion && npm run showcase"
-
-remotion-component-showcase:
-	@cmd /C "cd remotion && npm run component-showcase"
-
-produce-tts:
-	uv run python main.py produce --job-id $(JOB) --step tts --tts --force $(ARGS)
-	uv run python main.py produce --job-id $(JOB) --step clips --force $(ARGS)
-	uv run python main.py produce --job-id $(JOB) --step compose --tts --force $(ARGS)
-
-produce-step:
-	uv run python main.py produce --job-id $(JOB) --step $(STEP) $(ARGS)
 
 status:
 	uv run python main.py status
@@ -113,19 +85,3 @@ nuke:
 
 test:
 	uv run pytest tests/ -v
-
-test-llm:
-	uv run python tests/test_llm_connectivity.py
-
-# Debug targets
-debug-ingest:
-	uv run python main.py --debug ingest $(ARGS)
-
-debug-generate:
-	uv run python main.py --debug generate $(ARGS)
-
-debug-polish:
-	uv run python main.py --debug polish $(ARGS)
-
-debug-produce:
-	uv run python main.py --debug produce $(ARGS)

@@ -55,6 +55,34 @@ export type SceneLayout =
   | 'timeline_vertical'
   | 'quote_focus';
 
+export interface WordAnim {
+  text: string;
+  start: number;
+  duration: number;
+  font_size: number;
+  color: string;
+  scale: number;
+  dy: number;
+  stagger: number;
+}
+
+export interface LineAnim {
+  line_index: number;
+  start: number;
+  duration: number;
+  y_position: number;
+  words: WordAnim[];
+  exit: 'flip' | 'fade' | 'none';
+}
+
+export interface KineticConfig {
+  lines: LineAnim[];
+  global_style: {
+    text_align: 'center' | 'left';
+    perspective: number;
+  };
+}
+
 export interface ComponentSpec {
   id: string;
   type: ComponentType;
@@ -68,13 +96,16 @@ export interface ComponentSpec {
 export interface RemotionSceneSpec {
   scene_index: number;
   duration: number;
-  template: 'basic_diagram';
+  template: 'basic_diagram' | 'kinetic_text' | 'image_full' | 'image_elegant' | 'image_card' | 'image_modern' | 'image_neon';
   theme: 'warm_grid' | 'dark_grid' | 'clean';
   layout?: SceneLayout;
   headline: string;
   subtitle?: string;
+  visual?: string;
   tts_emotion?: string;
   components: ComponentSpec[];
+  kinetic_config?: KineticConfig;
+  image_url?: string;
 }
 
 export interface RemotionVideoSpec {

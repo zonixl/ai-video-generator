@@ -148,7 +148,7 @@ def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
     )
 
 
-def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False, refine_enabled: bool = False) -> ProduceRemotionPipeline:
+def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False, refine_enabled: bool = False, kinetic: bool = False) -> ProduceRemotionPipeline:
     rule_planner = RuleBasedRemotionPlanner()
     if cfg.remotion_planner == "ai" and not render_only:
         planner = AIRemotionPlanner(
@@ -172,12 +172,29 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
             output_remotion_dir=cfg.output_remotion_dir,
             frames_per_scene=cfg.remotion_review_frames_per_scene,
         )
+    kinetic_planner = None
+    if kinetic:
+        from core.kinetic_planner import KineticTextPlanner
+        kinetic_planner = KineticTextPlanner(build_model_manager(cfg))
+    # Image provider (for image_* templates)
+    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
+        image_provider = ArkSeedreamImageProvider(
+            base_url=cfg.image_gen_base_url,
+            api_key=cfg.image_gen_api_key,
+            model=cfg.image_gen_model,
+            size=cfg.image_gen_size,
+            watermark=cfg.image_gen_watermark,
+        )
+    else:
+        image_provider = PlaceholderImageProvider()
     return ProduceRemotionPipeline(
         cfg,
         planner=planner,
         renderer=renderer,
         refiner=refiner,
         tts_provider=build_tts_provider(cfg),
+        kinetic_planner=kinetic_planner,
+        image_provider=image_provider,
     )
 
 
@@ -288,7 +305,7 @@ def cmd_produce_remotion(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     refine_enabled = args.refine or args.step == "refine" or cfg.remotion_refine_enabled
-    pipeline = build_produce_remotion_pipeline(cfg, render_only=args.step in {"render", "refine"}, refine_enabled=refine_enabled)
+    pipeline = build_produce_remotion_pipeline(cfg, render_only=args.step in {"render", "refine"}, refine_enabled=refine_enabled, kinetic=args.kinetic)
     result = pipeline.run(
         args.script,
         job_id=args.job_id,
@@ -477,12 +494,13 @@ def main():
     p_remotion.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
     p_remotion.add_argument(
         "--step",
-        choices=("all", "plan", "tts", "refine", "render"),
+        choices=("all", "plan", "tts", "kinetic", "image", "refine", "render"),
         default="all",
-        help="Remotion 阶段：all / plan / tts / refine / render",
+        help="Remotion 阶段：all / plan / tts / kinetic / image / refine / render",
     )
     p_remotion.add_argument("--force", action="store_true", help="强制重做 Remotion input")
     p_remotion.add_argument("--tts", action="store_true", default=False, help="启用 TTS 语音合成")
+    p_remotion.add_argument("--kinetic", action="store_true", default=False, help="启用逐词动态文字模式")
     p_remotion.add_argument("--refine", action="store_true", help="在 all 流程中启用视觉自迭代")
     p_remotion.add_argument("--refine-rounds", type=int, default=None, help="视觉自迭代最大轮数")
     p_remotion.add_argument("--review-only", action="store_true", help="只输出视觉审查报告，不应用 patch")

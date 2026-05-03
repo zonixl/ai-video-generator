@@ -85,6 +85,7 @@ class AIRemotionPlanner:
                 remotion_scene.scene_index = scene.index
                 remotion_scene.duration = scene.duration
                 remotion_scene.subtitle = remotion_scene.subtitle or scene.subtitle
+                remotion_scene.visual = remotion_scene.visual or scene.visual
                 scenes.append(remotion_scene)
             except Exception:
                 logger.warning("AI Remotion planning failed for scene %03d; using fallback", scene.index, exc_info=True)

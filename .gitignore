@@ -49,3 +49,4 @@ config/config.yaml
 # Shim
 pyaudioop.py
 /.cursor/
+/Pixelle-Video-main/

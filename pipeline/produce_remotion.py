@@ -11,13 +11,14 @@ from core.remotion_planner import RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
 from core.remotion_renderer import RemotionRenderer
 from core.remotion_schema import RemotionProduceResult, RemotionVideoSpec, to_dict, video_from_dict
+from core.template_registry import needs_image
 from core.tts import EdgeTTSProvider, _audio_duration
 from utils.file_utils import read_json, read_text, write_json
 from utils.media_utils import make_job_id
 
 logger = logging.getLogger(__name__)
 
-REMOTION_STEPS = ("all", "plan", "tts", "refine", "render")
+REMOTION_STEPS = ("all", "plan", "tts", "kinetic", "image", "refine", "render")
 
 
 class ProduceRemotionPipeline:
@@ -31,12 +32,16 @@ class ProduceRemotionPipeline:
         renderer: RemotionRenderer | None = None,
         refiner: RemotionRefiner | None = None,
         tts_provider=None,
+        kinetic_planner=None,
+        image_provider=None,
     ):
         self._cfg = config
         self._planner = planner or RuleBasedRemotionPlanner()
         self._renderer = renderer or RemotionRenderer(config.remotion_project_dir)
         self._refiner = refiner
         self._tts_provider = tts_provider or EdgeTTSProvider()
+        self._kinetic_planner = kinetic_planner
+        self._image_provider = image_provider
 
     def run(
         self,
@@ -97,6 +102,64 @@ class ProduceRemotionPipeline:
         elif step == "tts" and not use_tts:
             logger.warning("Step 'tts' selected but --tts not enabled.")
 
+        # ---- Step: kinetic_text ----
+        if step in {"all", "kinetic"} and self._kinetic_planner:
+            logger.info("[kinetic] Generating word-by-word animation config ...")
+            for scene in spec.scenes:
+                # 只为 kinetic_text 模板生成动画配置，不覆盖其他模板
+                if scene.template not in ("kinetic_text", "basic_diagram"):
+                    continue
+                text = scene.subtitle.strip()
+                if not text:
+                    continue
+                try:
+                    config = self._kinetic_planner.plan(
+                        text, scene.duration,
+                        emotion=scene.tts_emotion or "", fps=spec.fps,
+                    )
+                    scene.kinetic_config = config
+                    scene.template = "kinetic_text"
+                    logger.info("      scene %03d: %d lines, %.1fs",
+                                scene.scene_index, len(config.get("lines", [])), scene.duration)
+                except Exception as exc:
+                    logger.warning("Kinetic planning failed scene %03d: %s", scene.scene_index, exc)
+            write_json(input_path, to_dict(spec))
+            logger.info("      -> kinetic config saved for %d scenes", len(spec.scenes))
+
+        # ---- Step: image generation ----
+        if step in {"all", "image"} and self._image_provider:
+            logger.info("[image] Generating scene images ...")
+            public_dir = self._cfg.remotion_project_dir / "public"
+            image_dir = public_dir / f"{job_id}_images"
+            image_dir.mkdir(parents=True, exist_ok=True)
+            for scene in spec.scenes:
+                if not needs_image(scene.template):
+                    continue
+                prompt = scene.visual or scene.subtitle
+                if not prompt.strip():
+                    logger.warning("      scene %03d: no visual/subtitle, skipping image", scene.scene_index)
+                    continue
+                try:
+                    from core.schema import Scene
+                    pseudo_scene = Scene(
+                        index=scene.scene_index,
+                        duration=scene.duration,
+                        subtitle=scene.subtitle,
+                        visual=scene.visual or scene.subtitle,
+                        image_prompt=prompt,
+                    )
+                    asset = self._image_provider.generate(
+                        pseudo_scene, image_dir,
+                        width=spec.width, height=spec.height,
+                    )
+                    # image_url 是相对于 remotion/public 的路径
+                    scene.image_url = f"{job_id}_images/{Path(asset.path).name}"
+                    logger.info("      scene %03d: %s", scene.scene_index, scene.image_url)
+                except Exception as exc:
+                    logger.warning("      scene %03d image FAILED: %s", scene.scene_index, exc)
+            write_json(input_path, to_dict(spec))
+            logger.info("      -> images saved for %d scenes", len(spec.scenes))
+
         # ---- Step: refine ----
         if step in {"all", "refine"} and (refine or step == "refine" or self._cfg.remotion_refine_enabled):
             if not self._refiner:
@@ -129,6 +192,8 @@ class ProduceRemotionPipeline:
             logger.info("Step 'refine' complete; final render was not touched.")
         elif step == "tts":
             logger.info("Step 'tts' complete; scene durations synced to audio.")
+        elif step == "kinetic":
+            logger.info("Step 'kinetic' complete; word animation configs generated.")
         else:
             logger.info("Step 'plan' complete; Remotion render was not touched.")
 
