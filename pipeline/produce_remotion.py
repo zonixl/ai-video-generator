@@ -65,12 +65,14 @@ class ProduceRemotionPipeline:
             raise ValueError(f"Unknown Remotion step: {step}. Available: {REMOTION_STEPS}")
 
         start = time.perf_counter()
-        job_id = job_id or make_job_id("remotion")
+        job_id = job_id or make_job_id(title or "")
         width = width or self._cfg.video_width
         height = height or self._cfg.video_height
         fps = fps or self._cfg.video_fps
-        input_path = self._input_path(job_id)
-        video_path = Path(output_path) if output_path else self._cfg.output_videos_dir / f"{job_id}.mp4"
+        job_dir = self._cfg.output_videos_dir / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+        input_path = job_dir / "input.json"
+        video_path = Path(output_path) if output_path else job_dir / f"{job_id}.mp4"
 
         logger.info("=" * 50)
         logger.info(
@@ -248,7 +250,7 @@ class ProduceRemotionPipeline:
         """逐 scene 合成独立 TTS 音频，精确匹配每句话的时长。"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        scene_dir = self._cfg.output_videos_dir / f"{job_id}_scenes"
+        scene_dir = self._cfg.output_videos_dir / job_id / "audio_scenes"
         scene_dir.mkdir(parents=True, exist_ok=True)
         voice = self._cfg.tts_voice
         rate = self._cfg.tts_speed
@@ -349,7 +351,7 @@ class ProduceRemotionPipeline:
             clip.close()
 
     def _audio_path(self, job_id: str) -> Path:
-        return self._cfg.output_videos_dir / f"{job_id}.mp3"
+        return self._cfg.output_videos_dir / job_id / "audio.mp3"
 
     def _copy_audio_for_remotion(self, audio_asset, job_id: str) -> Path:
         """复制音频到 Remotion public/ 目录，使 staticFile() 可引用。"""
@@ -359,6 +361,3 @@ class ProduceRemotionPipeline:
         shutil.copy2(audio_asset.path, dest)
         logger.info("      -> audio copied to remotion public/: %s", dest.name)
         return dest
-
-    def _input_path(self, job_id: str) -> Path:
-        return self._cfg.output_remotion_dir / job_id / "input.json"

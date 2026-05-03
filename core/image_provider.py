@@ -243,10 +243,10 @@ class ArkSeedreamImageProvider(ImageProvider):
         ("full", "landscape"): (2560, 1440),   # 16:9,  3,686,400 px
         # image_elegant：竖卡片
         ("card_portrait", "portrait"):  (1800, 2400),   # 3:4,  4,320,000 px
-        ("card_portrait", "landscape"): (1800, 2400),   # 3:4,  4,320,000 px
+        ("card_portrait", "landscape"): (2400, 1800),   # 3:4,  4,320,000 px
         # image_card / modern / neon：横卡片
         ("card", "portrait"):  (2352, 1568),   # 3:2,  3,688,416 px
-        ("card", "landscape"): (2352, 1568),   # 3:2,  3,688,416 px
+        ("card", "landscape"): (1568, 2352),   # 3:2,  3,688,416 px
     }
 
     def _size_for_template(self, video_w: int, video_h: int, template: str) -> str:

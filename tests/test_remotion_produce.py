@@ -68,7 +68,7 @@ def test_produce_remotion_render_uses_existing_input(tmp_path):
     from utils.file_utils import write_json
 
     config = FakeConfig(tmp_path)
-    input_path = config.output_remotion_dir / "remotion_test" / "input.json"
+    input_path = config.output_videos_dir / "remotion_test" / "input.json"
     write_json(input_path, _fake_spec_dict())
     renderer = FakeRenderer()
     pipeline = ProduceRemotionPipeline(config, planner=FakePlanner(), renderer=renderer)
@@ -82,7 +82,6 @@ def test_produce_remotion_render_uses_existing_input(tmp_path):
 
 class FakeConfig:
     def __init__(self, root: Path):
-        self.output_remotion_dir = root / "remotion"
         self.output_videos_dir = root / "videos"
         self.video_width = 720
         self.video_height = 1280
@@ -93,7 +92,7 @@ class FakeConfig:
 
 
 class FakePlanner:
-    def plan(self, script: str, *, title: str | None, width: int, height: int, fps: int) -> RemotionVideoSpec:
+    def plan(self, script: str, *, title: str | None, width: int, height: int, fps: int, template: str | None = None) -> RemotionVideoSpec:
         return RemotionVideoSpec(
             title="测试 Remotion",
             width=width,

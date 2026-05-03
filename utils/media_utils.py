@@ -6,9 +6,13 @@ from datetime import datetime
 from pathlib import Path
 
 
-def make_job_id(prefix: str = "video") -> str:
-    """生成一次视频生产任务的 ID。"""
-    return f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+def make_job_id(title: str = "") -> str:
+    """生成任务 ID：{标题}-{时间戳}。"""
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    if title:
+        safe = safe_stem(title, fallback="video", limit=30)
+        return f"{safe}-{timestamp}"
+    return f"video-{timestamp}"
 
 
 def ensure_dir(path: str | Path) -> Path:

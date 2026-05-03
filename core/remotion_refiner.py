@@ -23,12 +23,12 @@ class RemotionRefiner:
         *,
         renderer: RemotionRenderer,
         vision_provider: VisionProvider,
-        output_remotion_dir: str | Path,
+        output_videos_dir: str | Path,
         frames_per_scene: int = 3,
     ):
         self._renderer = renderer
         self._vision = vision_provider
-        self._output_remotion_dir = Path(output_remotion_dir)
+        self._output_videos_dir = Path(output_videos_dir)
         self._frames_per_scene = max(1, min(3, int(frames_per_scene)))
 
     def refine(
@@ -43,7 +43,7 @@ class RemotionRefiner:
         latest_result: ReviewResult | None = None
         for round_index in range(1, max(1, max_rounds) + 1):
             spec = read_json(input_path)
-            round_dir = self._output_remotion_dir / job_id / "reviews" / f"round_{round_index:02d}"
+            round_dir = self._output_videos_dir / job_id / "reviews" / f"round_{round_index:02d}"
             frames = self._render_review_frames(input_path, spec, round_dir)
             result = self._review(spec, frames)
             latest_result = result

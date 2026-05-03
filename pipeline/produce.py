@@ -70,7 +70,7 @@ class ProducePipeline:
         width = width or self._cfg.video_width
         height = height or self._cfg.video_height
         fps = fps or self._cfg.video_fps
-        job_id = self._resolve_job_id(job_id=job_id, from_plan=from_plan)
+        job_id = self._resolve_job_id(job_id=job_id, from_plan=from_plan, title=title)
         logger.info("=" * 50)
         logger.info(
             "ProducePipeline START: script=%s job_id=%s from_plan=%s step=%s size=%dx%d fps=%d tts=%s reuse_assets=%s force=%s",
@@ -156,12 +156,12 @@ class ProducePipeline:
             audio_path=audio_asset.path if audio_asset else None,
         )
 
-    def _resolve_job_id(self, *, job_id: str | None, from_plan: str | None) -> str:
+    def _resolve_job_id(self, *, job_id: str | None, from_plan: str | None, title: str | None = None) -> str:
         if job_id:
             return job_id
         if from_plan:
             return Path(from_plan).stem
-        return make_job_id("video")
+        return make_job_id(title or "")
 
     def _plan_path(self, job_id: str, *, from_plan: str | None) -> Path:
         return Path(from_plan) if from_plan else self._cfg.output_plans_dir / f"{job_id}.json"

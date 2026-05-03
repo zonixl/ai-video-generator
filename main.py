@@ -169,7 +169,7 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
         refiner = RemotionRefiner(
             renderer=renderer,
             vision_provider=vision_provider,
-            output_remotion_dir=cfg.output_remotion_dir,
+            output_videos_dir=cfg.output_videos_dir,
             frames_per_scene=cfg.remotion_review_frames_per_scene,
         )
     kinetic_planner = None

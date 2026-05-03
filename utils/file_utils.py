@@ -43,13 +43,12 @@ def save_transcript(text: str, source_file: str | Path, output_dir: str | Path) 
 
 
 def save_script(text: str, topic: str, output_dir: str | Path) -> Path:
-    """保存生成的文案。"""
+    """保存生成的文案，文件名 = 标题。"""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # topic 作为文件名的一部分（只保留中文、字母、数字）
-    safe_topic = "".join(c for c in topic if c.isalnum() or c in "._- ")[:30].strip()
-    filename = f"{safe_topic}_{timestamp}.md"
+    # topic 作为文件名（只保留中文、字母、数字）
+    safe_topic = "".join(c for c in topic if c.isalnum() or c in "._- ")[:40].strip()
+    filename = f"{safe_topic}.md"
     output_path = output_dir / filename
     write_text(output_path, text)
     return output_path

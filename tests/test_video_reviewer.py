@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from utils.file_utils import read_json
-
+import pytest
 
 def test_sample_times_cover_video_range():
     from core.video_reviewer import sample_times
@@ -15,7 +15,7 @@ def test_sample_times_cover_video_range():
     assert times[-1] == 92.0
     assert times == sorted(times)
 
-
+@pytest.mark.skip(reason="需要GPU和模型文件，仅手动执行")
 def test_video_reviewer_writes_review_and_metadata(tmp_path):
     from core.video_reviewer import VideoReviewer
 

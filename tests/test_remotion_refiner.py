@@ -42,7 +42,7 @@ def test_refiner_applies_safe_patches(tmp_path):
     refiner = RemotionRefiner(
         renderer=renderer,
         vision_provider=FakeVisionProvider(pass_after=2),
-        output_remotion_dir=tmp_path,
+        output_videos_dir=tmp_path,
         frames_per_scene=1,
     )
 
@@ -66,7 +66,7 @@ def test_refiner_review_only_does_not_apply_patch(tmp_path):
     refiner = RemotionRefiner(
         renderer=FakeRenderer(),
         vision_provider=FakeVisionProvider(pass_after=99),
-        output_remotion_dir=tmp_path,
+        output_videos_dir=tmp_path,
         frames_per_scene=1,
     )
 
