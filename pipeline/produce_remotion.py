@@ -81,17 +81,18 @@ class ProduceRemotionPipeline:
         )
 
         # ---- Step: plan ----
-        spec = self._prepare_plan(
-            script_path=script_path,
-            input_path=input_path,
-            title=title,
-            width=width,
-            height=height,
-            fps=fps,
-            step=step,
-            force=force,
-            template=template,
-        )
+        if step in {"all", "plan"} :
+            spec = self._prepare_plan(
+                script_path=script_path,
+                input_path=input_path,
+                title=title,
+                width=width,
+                height=height,
+                fps=fps,
+                step=step,
+                force=force,
+                template=template,
+            )
 
         # ---- Step: tts ----
         if step in {"all", "tts"} and use_tts:
