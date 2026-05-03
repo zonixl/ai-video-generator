@@ -88,3 +88,6 @@ nuke:
 
 test:
 	uv run pytest tests/ -v
+
+test-ssl-style:
+	uv run python tests/test_tts_styles.py
