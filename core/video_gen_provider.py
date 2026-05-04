@@ -129,7 +129,7 @@ class SeedanceVideoProvider:
 
             if status == "succeeded":
                 video_url = (
-                    data.get("content", {}).get("video", {}).get("url", "")
+                    data.get("content", {}).get("video_url", {})
                 )
                 if not video_url:
                     raise RuntimeError(f"Seedance succeeded but no video URL: {data}")

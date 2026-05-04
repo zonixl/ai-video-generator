@@ -204,6 +204,7 @@ class AISceneSplitter:
         fps: int,
     ) -> VideoPlan:
         data = json.loads(self._extract_json(response))
+        character_desc = str(data.get("character_description", "")).strip()
         scenes_data = data.get("scenes", data if isinstance(data, list) else [])
         scenes = []
         for position, item in enumerate(scenes_data, start=1):
@@ -236,6 +237,7 @@ class AISceneSplitter:
             height=height,
             fps=fps,
             style=style,
+            character_description=character_desc,
         )
 
     def _extract_json(self, text: str) -> str:

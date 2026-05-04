@@ -33,6 +33,7 @@ class VideoPlan:
     height: int = 1920
     fps: int = 30
     style: str = "clean"
+    character_description: str = ""
 
     @property
     def total_duration(self) -> float:
@@ -117,5 +118,6 @@ def video_plan_from_dict(data: dict[str, Any]) -> VideoPlan:
         height=int(data.get("height", 1920)),
         fps=int(data.get("fps", 30)),
         style=str(data.get("style", "clean")),
+        character_description=str(data.get("character_description", "")),
     )
 

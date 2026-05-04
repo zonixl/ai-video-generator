@@ -207,9 +207,10 @@ def build_produce_seedance_pipeline(cfg: Settings) -> ProduceSeedancePipeline:
         max_scene_duration=cfg.video_max_scene_duration,
         chars_per_second=cfg.video_chars_per_second,
     )
+    model_mgr = build_model_manager(cfg)
     if cfg.video_scene_splitter == "ai":
         splitter = AISceneSplitter(
-            build_model_manager(cfg),
+            model_mgr,
             instance_name=cfg.video_scene_planner_instance,
             fallback=rule_splitter,
             min_scene_duration=cfg.video_min_scene_duration,
@@ -253,6 +254,7 @@ def build_produce_seedance_pipeline(cfg: Settings) -> ProduceSeedancePipeline:
         image_provider=image_provider,
         video_provider=video_provider,
         tts_provider=build_tts_provider(cfg),
+        model_manager=model_mgr,
     )
 
 
@@ -614,9 +616,9 @@ def main():
     p_seedance.add_argument("--fps", type=int, default=None, help="视频帧率")
     p_seedance.add_argument(
         "--step",
-        choices=("all", "plan", "images", "videos", "compose"),
+        choices=("all", "plan", "images", "videos", "subtitles", "compose", "unify"),
         default="all",
-        help="执行阶段：all / plan / images / videos / compose",
+        help="执行阶段：all / plan / images / videos / subtitles / compose / unify",
     )
     p_seedance.add_argument("--force", action="store_true", help="强制重做")
     p_seedance.add_argument(
