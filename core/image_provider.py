@@ -328,3 +328,144 @@ class ArkSeedreamImageProvider(ImageProvider):
         with urlopen(url, timeout=self._timeout) as response:
             output_path.write_bytes(response.read())
 
+
+class GPTImageProvider(ImageProvider):
+    """GPT Image 2 图片生成 Provider（OpenAI 兼容接口）。"""
+
+    provider_name = "gpt-image"
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        model: str = "gpt-image-2",
+        size: str = "1024x1024",
+        quality: str = "auto",
+        timeout: int = 300,
+        client=None,
+    ):
+        self._base_url = base_url
+        self._api_key = api_key
+        self._model = model
+        self._size = size
+        self._quality = quality
+        self._timeout = timeout
+        self._client = client
+
+    def generate(self, scene: Scene, output_dir: str | Path, *, width: int, height: int, template: str = "") -> ImageAsset:
+        if not self._api_key:
+            raise RuntimeError("GPTImageProvider 需要配置 image_gen.api_key")
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        image_path = output_dir / scene_filename(scene.index, ".png")
+        prompt = self._build_prompt(scene, width, height)
+
+        # gpt-image-2 支持的尺寸
+        size = self._pick_size(width, height)
+
+        logger.info(
+            "GPT Image start: scene=%03d model=%s size=%s prompt_len=%d",
+            scene.index, self._model, size, len(prompt),
+        )
+        response = self._client_or_create().images.generate(
+            model=self._model,
+            prompt=prompt,
+            n=1,
+            size=size,
+            quality=self._quality,
+            response_format="url",
+        )
+        image_url = response.data[0].url
+        if not image_url:
+            raise RuntimeError("GPT Image did not return image url")
+        with urlopen(image_url, timeout=self._timeout) as resp:
+            image_path.write_bytes(resp.read())
+        logger.info("GPT Image done: scene=%03d path=%s", scene.index, image_path)
+        return ImageAsset(
+            scene_index=scene.index,
+            path=str(image_path),
+            provider=self.provider_name,
+            prompt=prompt,
+        )
+
+    def generate_from_ref(
+        self,
+        ref_image_path: str | Path,
+        scene: Scene,
+        output_dir: str | Path,
+        *,
+        width: int,
+        height: int,
+    ) -> ImageAsset:
+        """基于参考图生成新图。gpt-image-2 通过 /v1/images/edits 端点支持 img2img。"""
+        if not self._api_key:
+            raise RuntimeError("GPTImageProvider 需要配置 image_gen.api_key")
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        image_path = output_dir / scene_filename(scene.index, ".png")
+        prompt = self._build_prompt(scene, width, height)
+        size = self._pick_size(width, height)
+
+        # 打开参考图文件
+        ref_path = Path(ref_image_path)
+
+        logger.info(
+            "GPT Image edits start: scene=%03d ref=%s size=%s prompt_len=%d",
+            scene.index, ref_path.name, size, len(prompt),
+        )
+
+        with open(ref_path, "rb") as f:
+            response = self._client_or_create().images.edit(
+                model=self._model,
+                image=f,
+                prompt=prompt,
+                n=1,
+                size=size,
+                quality=self._quality,
+                response_format="url",
+            )
+        image_url = response.data[0].url
+        if not image_url:
+            raise RuntimeError("GPT Image edits did not return image url")
+        with urlopen(image_url, timeout=self._timeout) as resp:
+            image_path.write_bytes(resp.read())
+        logger.info("GPT Image edits done: scene=%03d path=%s", scene.index, image_path)
+        return ImageAsset(
+            scene_index=scene.index,
+            path=str(image_path),
+            provider=self.provider_name,
+            prompt=prompt,
+        )
+
+    def _client_or_create(self):
+        if self._client is not None:
+            return self._client
+        from openai import OpenAI
+
+        self._client = OpenAI(
+            base_url=self._base_url,
+            api_key=self._api_key,
+            timeout=self._timeout,
+        )
+        return self._client
+
+    def _build_prompt(self, scene: Scene, width: int, height: int) -> str:
+        orientation = "竖屏" if height > width else "横屏"
+        return (
+            f"{scene.image_prompt}\n"
+            f"画面描述：{scene.visual}\n"
+            f"{orientation}构图，主体完整居中。\n"
+            "限制：画面中绝对不要出现任何文字、字母、数字、符号、字幕、logo、水印、二维码。"
+        )
+
+    def _pick_size(self, width: int, height: int) -> str:
+        """选择 gpt-image-2 支持的尺寸。"""
+        if width > height:
+            return "1536x1024"
+        elif height > width:
+            return "1024x1536"
+        return self._size
+

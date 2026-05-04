@@ -187,6 +187,8 @@ class Settings:
     @property
     def image_gen_watermark(self) -> bool:      return self._get("image_gen_watermark", True)
     @property
+    def image_gen_quality(self) -> str:         return self._get("image_gen_quality", "auto")
+    @property
     def image_gen_width(self) -> int:           return self._get("image_gen_width", 1080)
     @property
     def image_gen_height(self) -> int:          return self._get("image_gen_height", 1920)

@@ -19,7 +19,7 @@ from core.embedder import Embedder
 from core.vectordb import VectorStore
 from core.retriever import Retriever
 from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
-from core.image_provider import ArkSeedreamImageProvider, PlaceholderImageProvider
+from core.image_provider import ArkSeedreamImageProvider, GPTImageProvider, PlaceholderImageProvider
 from core.tts import EdgeTTSProvider, MiMoProvider, iFLYTEKProvider
 from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
 from core.remotion_refiner import RemotionRefiner
@@ -106,6 +106,27 @@ def build_tts_provider(cfg: Settings):
     return EdgeTTSProvider()
 
 
+def build_image_provider(cfg: Settings):
+    """根据配置创建图片生成 Provider。"""
+    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
+        return ArkSeedreamImageProvider(
+            base_url=cfg.image_gen_base_url,
+            api_key=cfg.image_gen_api_key,
+            model=cfg.image_gen_model,
+            size=cfg.image_gen_size,
+            watermark=cfg.image_gen_watermark,
+        )
+    if cfg.image_gen_engine == "gpt-image":
+        return GPTImageProvider(
+            base_url=cfg.image_gen_base_url,
+            api_key=cfg.image_gen_api_key,
+            model=cfg.image_gen_model,
+            size=cfg.image_gen_size,
+            quality=cfg.image_gen_quality,
+        )
+    return PlaceholderImageProvider()
+
+
 def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
     rule_splitter = RuleBasedSceneSplitter(
         min_scene_duration=cfg.video_min_scene_duration,
@@ -123,16 +144,7 @@ def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
     else:
         splitter = rule_splitter
 
-    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
-        image_provider = ArkSeedreamImageProvider(
-            base_url=cfg.image_gen_base_url,
-            api_key=cfg.image_gen_api_key,
-            model=cfg.image_gen_model,
-            size=cfg.image_gen_size,
-            watermark=cfg.image_gen_watermark,
-        )
-    else:
-        image_provider = PlaceholderImageProvider()
+    image_provider = build_image_provider(cfg)
 
     if cfg.video_animation_planner == "ai":
         animation_planner = AIAnimationPlanner(
@@ -179,16 +191,7 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
         from core.kinetic_planner import KineticTextPlanner
         kinetic_planner = KineticTextPlanner(build_model_manager(cfg))
     # Image provider (for image_* templates)
-    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
-        image_provider = ArkSeedreamImageProvider(
-            base_url=cfg.image_gen_base_url,
-            api_key=cfg.image_gen_api_key,
-            model=cfg.image_gen_model,
-            size=cfg.image_gen_size,
-            watermark=cfg.image_gen_watermark,
-        )
-    else:
-        image_provider = PlaceholderImageProvider()
+    image_provider = build_image_provider(cfg)
     return ProduceRemotionPipeline(
         cfg,
         planner=planner,
@@ -219,17 +222,8 @@ def build_produce_seedance_pipeline(cfg: Settings) -> ProduceSeedancePipeline:
     else:
         splitter = rule_splitter
 
-    # image provider (Seedream)
-    if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
-        image_provider = ArkSeedreamImageProvider(
-            base_url=cfg.image_gen_base_url,
-            api_key=cfg.image_gen_api_key,
-            model=cfg.image_gen_model,
-            size=cfg.image_gen_size,
-            watermark=cfg.image_gen_watermark,
-        )
-    else:
-        image_provider = PlaceholderImageProvider()
+    # image provider
+    image_provider = build_image_provider(cfg)
 
     # video provider (Seedance)
     video_provider = None
