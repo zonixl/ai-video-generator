@@ -88,7 +88,7 @@ class SeedanceVideoProvider:
                     "image_url": {"url": image_b64},
                     "role": "first_frame",
                 },
-                {"type": "text", "text": prompt},
+                {"type": "text", "text": prompt + "，画面中不要出现任何文字、字幕、logo、水印。"},
             ],
             "resolution": self._resolution,
             "ratio": self._ratio,

@@ -296,7 +296,7 @@ class ArkSeedreamImageProvider(ImageProvider):
             f"{scene.image_prompt}\n"
             f"画面描述：{scene.visual}\n"
             f"{style_hint}\n"
-            "限制：不要文字，不要字幕，不要 logo，不要水印，不要二维码。"
+            "限制：画面中绝对不要出现任何文字、字母、数字、符号、字幕、logo、水印、二维码。"
         )
 
     # ---- 方式 2：精确像素尺寸（必须满足总像素≥3686400，宽高比∈[1/16,16]）----

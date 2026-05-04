@@ -148,7 +148,7 @@ class ProduceSeedancePipeline:
         if step in {"all", "compose"}:
             # TTS 音频
             if audio_mode == "tts" and use_tts:
-                audio_asset = self._prepare_audio(plan, job_dir, force=force)
+                audio_asset = self._prepare_audio(plan, job_dir, clip_dir, force=force)
 
             self._compose(
                 plan=plan,
@@ -267,7 +267,7 @@ class ProduceSeedancePipeline:
             f"以下是同一个短视频的{len(plan.scenes)}个分镜的图片生成提示词，但每个分镜描述的人物外观不一致。\n"
             f"请做两件事：\n"
             f"1. 从这些描述中总结出一个统一的角色外观描述（50字以内），包含性别、年龄范围、发型、穿着、体态等关键特征。\n"
-            f"2. 为每个分镜重写 image_prompt：在开头加上统一角色描述，后面保留原场景的环境、构图、光线等描述，去掉原 prompt 中与角色冲突的部分。\n"
+            f"2. 为每个分镜重写 image_prompt：在开头加上统一角色描述，后面保留原场景的环境、构图、光线等描述，去掉原 prompt 中与角色冲突的部分。每个 prompt 末尾必须加上\"无文字无logo无水印\"，画面中绝对不能出现文字、字母、数字、字幕。\n"
             f"\n分镜提示词：\n{scenes_summary}\n"
             f"\n请严格输出 JSON，格式为：\n"
             f'{{"character_description": "统一角色描述", "scenes": [{{"index": 1, "image_prompt": "重写后的提示词"}}, ...]}}\n'
@@ -522,22 +522,25 @@ class ProduceSeedancePipeline:
 
         import subprocess
 
-        # 用 ffmpeg subtitles 滤镜烧录字幕
-        # force_style 控制字体、大小、颜色、位置
-        style = (
-            "FontName=Microsoft YaHei,"
-            "FontSize=22,"
-            "PrimaryColour=&HFFFFFF,"
-            "OutlineColour=&H000000,"
-            "Outline=2,"
-            "Shadow=1,"
-            "Alignment=2,"
-            "MarginV=40"
-        )
+        # 先将 SRT 转换为 ASS 格式（ASS 路径处理更可靠，避免 Windows 路径冒号问题）
+        ass_path = srt_path.with_suffix(".ass")
+        convert_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(srt_path),
+            str(ass_path),
+        ]
+        result = subprocess.run(convert_cmd, capture_output=True, text=True, encoding="utf-8")
+        if result.returncode != 0:
+            raise RuntimeError(f"SRT to ASS conversion failed: {result.stderr[:300]}")
+
+        # 修改 ASS 文件的样式
+        self._style_ass(ass_path)
+
+        # 用 ass 滤镜烧录字幕（比 subtitles 滤镜路径处理更可靠）
         cmd = [
             "ffmpeg", "-y",
             "-i", str(video_path),
-            "-vf", f"subtitles={srt_path.as_posix()}:force_style='{style}'",
+            "-vf", f"ass={ass_path.as_posix()}",
             "-c:a", "copy",
             str(output_path),
         ]
@@ -548,24 +551,102 @@ class ProduceSeedancePipeline:
         logger.info("[subtitles] Done: %s", output_path)
         return str(output_path)
 
+    def _style_ass(self, ass_path: Path) -> None:
+        """修改 ASS 字幕文件的样式，优化显示效果。"""
+        content = ass_path.read_text(encoding="utf-8")
+
+        # 替换默认样式行
+        old_style = "Style: Default,Arial,16,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1"
+        new_style = "Style: Default,Microsoft YaHei,22,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,40,1"
+        content = content.replace(old_style, new_style)
+
+        ass_path.write_text(content, encoding="utf-8")
+
     # ---- audio ----
 
-    def _prepare_audio(self, plan: VideoPlan, job_dir: Path, *, force: bool) -> AudioAsset | None:
+    def _prepare_audio(self, plan: VideoPlan, job_dir: Path, clip_dir: Path, *, force: bool) -> AudioAsset | None:
         audio_path = job_dir / "audio.mp3"
         if audio_path.exists() and not force:
             logger.info("[tts] Reusing audio: %s", audio_path)
             duration = self._audio_duration(audio_path)
             return AudioAsset(str(audio_path), duration=duration, provider="tts")
 
-        logger.info("[tts] Generating TTS audio ...")
-        text = "\n".join(scene.narration for scene in plan.scenes)
-        asset = self._tts_provider.synthesize(
-            text, audio_path,
-            voice=self._cfg.tts_voice,
-            rate=self._cfg.tts_speed,
+        logger.info("[tts] Generating per-scene TTS aligned to video clips ...")
+        audio_dir = job_dir / "audio_clips"
+        audio_dir.mkdir(parents=True, exist_ok=True)
+
+        clip_paths = []
+
+        for scene in plan.scenes:
+            clip_path = audio_dir / f"scene_{scene.index:03d}.mp3"
+            text = scene.narration or scene.subtitle
+            if not text.strip():
+                continue
+
+            # 读取视频片段的实际时长
+            video_clip_path = clip_dir / scene_filename(scene.index, ".mp4")
+            if video_clip_path.exists():
+                target_duration = self._audio_duration(video_clip_path)
+            else:
+                target_duration = scene.duration
+
+            # 第一轮：用正常速率生成，实测 TTS 语速
+            self._tts_provider.synthesize(
+                text, clip_path,
+                voice=self._cfg.tts_voice,
+                rate=1.0,
+            )
+            actual_duration = self._audio_duration(clip_path)
+
+            # 根据实测时长 vs 视频时长，计算需要的速率
+            rate = 1.0
+            if actual_duration > 0 and target_duration > 0:
+                rate = actual_duration / target_duration
+                rate *= 1.02  # 留 2% 余量，确保音频不超视频
+
+            logger.info(
+                "       scene %03d: tts=%.1fs video=%.1fs rate=%.2f",
+                scene.index, actual_duration, target_duration, rate,
+            )
+
+            # 如果速率 > 1.02（需要加速），重新生成
+            if rate > 1.02:
+                rate = min(rate, 2.0)  # 上限 2x
+                logger.info("       scene %03d: regenerating at rate=%.2f", scene.index, rate)
+                self._tts_provider.synthesize(
+                    text, clip_path,
+                    voice=self._cfg.tts_voice,
+                    rate=rate,
+                )
+
+            clip_paths.append(clip_path)
+
+        if not clip_paths:
+            logger.warning("[tts] No audio clips generated")
+            return None
+
+        # 用 ffmpeg 拼接所有音频片段
+        concat_list = job_dir / "audio_concat.txt"
+        concat_list.write_text(
+            "\n".join(f"file '{p.as_posix()}'" for p in clip_paths),
+            encoding="utf-8",
         )
-        logger.info("[tts] Done: %.1fs -> %s", asset.duration, audio_path)
-        return asset
+
+        import subprocess
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0",
+            "-i", str(concat_list),
+            "-c", "copy",
+            str(audio_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+        if result.returncode != 0:
+            raise RuntimeError(f"Audio concat failed: {result.stderr[:300]}")
+
+        duration = self._audio_duration(audio_path)
+        logger.info("[tts] Done: %.1fs -> %s (%d clips)", duration, audio_path, len(clip_paths))
+        return AudioAsset(str(audio_path), duration=duration, provider="tts")
 
     # ---- compose ----
 
@@ -609,6 +690,13 @@ class ProduceSeedancePipeline:
         audio_clip = None
         if audio_asset:
             audio_clip = AudioFileClip(audio_asset.path)
+            # 如果音频比视频长，延长视频到最后一个画面
+            if audio_clip.duration and audio_clip.duration > final_clip.duration:
+                logger.info(
+                    "[compose] Audio (%.1fs) longer than video (%.1fs), extending video",
+                    audio_clip.duration, final_clip.duration,
+                )
+                final_clip = final_clip.with_duration(audio_clip.duration)
             final_clip = final_clip.with_audio(audio_clip)
 
         final_clip.write_videofile(
@@ -630,16 +718,17 @@ class ProduceSeedancePipeline:
         logger.info("[compose] Done: %s", final_path)
         return str(final_path)
 
-    def _audio_duration(self, audio_path: Path) -> float:
+    def _audio_duration(self, media_path: Path) -> float:
+        """用 ffprobe 获取媒体文件时长，避免 moviepy FFMPEG_AudioReader 兼容性问题。"""
+        import subprocess
+        import json
         try:
-            from moviepy import AudioFileClip
-        except ImportError:
-            try:
-                from moviepy.editor import AudioFileClip
-            except ImportError:
-                return 0.0
-        clip = AudioFileClip(str(audio_path))
-        try:
-            return float(clip.duration or 0.0)
-        finally:
-            clip.close()
+            result = subprocess.run(
+                ["ffprobe", "-v", "quiet", "-print_format", "json",
+                 "-show_format", str(media_path)],
+                capture_output=True, text=True, encoding="utf-8",
+            )
+            data = json.loads(result.stdout)
+            return float(data.get("format", {}).get("duration", 0.0))
+        except Exception:
+            return 0.0
