@@ -17,15 +17,20 @@ from api import db
 from api.schemas import (
     ClearRequest,
     GenerateRequest,
+    IngestTextRequest,
     NukeRequest,
     PolishRequest,
     ProduceRemotionRequest,
     ProduceSeedanceRequest,
     ProduceRequest,
     ReviewVideoRequest,
+    SaveScriptRequest,
 )
 
 logger = logging.getLogger("api")
+
+# 活跃任务注册表：job_id → threading.Event（set 表示请求取消）
+_active_jobs: dict[str, threading.Event] = {}
 
 app = FastAPI(
     title="AI 内容生产系统",
@@ -50,21 +55,31 @@ def _make_args(**kwargs) -> argparse.Namespace:
     """构造 argparse.Namespace，填充默认 config/debug。"""
     kwargs.setdefault("config", None)
     kwargs.setdefault("debug", False)
-    return argparse.Namespace(**{k: v for k, v in kwargs.items() if v is not None})
+    kwargs.setdefault("input", None)
+    kwargs.setdefault("force", False)
+    return argparse.Namespace(**kwargs)
 
 
 def _run_async(job_type: str, params: dict, fn, args: argparse.Namespace) -> dict:
     """创建异步任务并在后台线程执行。"""
     job_id = db.create_job(job_type, params)
+    cancel_event = threading.Event()
+    _active_jobs[job_id] = cancel_event
 
     def _worker():
         db.update_job(job_id, status="running", started_at=time.time())
         try:
             fn(args)
-            db.update_job(job_id, status="success", finished_at=time.time())
+            # 检查是否在执行期间被取消
+            if cancel_event.is_set():
+                db.update_job(job_id, status="cancelled", finished_at=time.time())
+            else:
+                db.update_job(job_id, status="success", finished_at=time.time())
         except Exception as exc:
             logger.exception("Job %s failed", job_id)
             db.update_job(job_id, status="failed", error=str(exc), finished_at=time.time())
+        finally:
+            _active_jobs.pop(job_id, None)
 
     threading.Thread(target=_worker, daemon=True).start()
     return {"job_id": job_id}
@@ -184,6 +199,23 @@ def ingest_path(input: str = Query(..., description="音频文件或文件夹路
     return _run_async("ingest", {"input": input, "force": force}, cmd_ingest, args)
 
 
+@app.post("/api/ingest-text", tags=["摄入"])
+def ingest_text(req: IngestTextRequest):
+    """直接文本摄入知识库（AI 整理后入库）。"""
+    from main import cmd_ingest_text
+
+    if not req.text or not req.text.strip():
+        return JSONResponse(status_code=400, content={"error": "需要 text 参数"})
+
+    args = _make_args(text=req.text, name=req.name, force=req.force)
+
+    try:
+        cmd_ingest_text(args)
+        return {"status": "ok", "message": "文本已摄入知识库"}
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": str(exc)})
+
+
 @app.post("/api/produce", tags=["视频生产"])
 def produce(req: ProduceRequest):
     """根据文案生成图片动画视频。"""
@@ -266,6 +298,24 @@ def get_job(job_id: str):
     return job
 
 
+@app.post("/api/jobs/{job_id}/cancel", tags=["任务"])
+def cancel_job(job_id: str):
+    """取消正在运行的任务。"""
+    job = db.get_job(job_id)
+    if job is None:
+        return JSONResponse(status_code=404, content={"error": "job not found"})
+    if job["status"] not in ("pending", "running"):
+        return JSONResponse(status_code=400, content={"error": f"任务状态 {job['status']} 无法取消"})
+
+    # 设置取消信号
+    cancel_event = _active_jobs.get(job_id)
+    if cancel_event:
+        cancel_event.set()
+
+    db.update_job(job_id, status="cancelled", finished_at=time.time())
+    return {"status": "ok", "message": f"任务 {job_id} 已取消"}
+
+
 # ============================================================
 #  文件浏览
 # ============================================================
@@ -288,6 +338,21 @@ def list_scripts():
             })
     results.sort(key=lambda x: x["modified"], reverse=True)
     return results
+
+
+@app.put("/api/scripts", tags=["文件"])
+def save_script(req: SaveScriptRequest):
+    """保存文案内容到文件。"""
+    file_path = Path(req.path)
+    # 安全检查：只允许写入 outputs/scripts 目录
+    try:
+        file_path.resolve().relative_to(Path("outputs/scripts").resolve())
+    except ValueError:
+        return JSONResponse(status_code=400, content={"error": "只能保存到 outputs/scripts 目录下"})
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(req.content, encoding="utf-8")
+    stat = file_path.stat()
+    return {"status": "ok", "name": file_path.name, "path": str(file_path), "size": stat.st_size}
 
 
 @app.get("/api/videos", tags=["文件"])

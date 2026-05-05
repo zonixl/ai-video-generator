@@ -1,5 +1,6 @@
-"""摄入管道：音频 → 语音识别 → LLM重构 → 文本分段 → Embedding → 向量库。"""
+"""摄入管道：音频/文本 → LLM重构 → 文本分段 → Embedding → 向量库。"""
 
+import hashlib
 import logging
 import time
 from pathlib import Path
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class IngestPipeline:
-    """编排音频摄入全流程。"""
+    """编排摄入全流程（音频 / 文本）。"""
 
     def __init__(self, stt, embedder, vector_store, model_manager, config):
         self._stt = stt
@@ -21,6 +22,63 @@ class IngestPipeline:
         self._vs = vector_store
         self._mgr = model_manager
         self._cfg = config
+
+    def ingest_text(self, text: str, source_name: str = "direct_input", force: bool = False) -> dict:
+        """直接文本摄入：AI 整理 → 分段 → Embedding → 入库。"""
+        text = clean_text(text)
+        if not text or len(text) < 10:
+            raise ValueError("文本内容太短（至少 10 个字符）")
+
+        fhash = hashlib.md5(text.encode()).hexdigest()
+        logger.info("=" * 50)
+        logger.info("IngestText START: source=%s chars=%d hash=%s", source_name, len(text), fhash)
+
+        # 去重
+        if self._vs.check_hash_exists(fhash):
+            if not force:
+                logger.warning("Duplicate detected! hash=%s already in vectordb.", fhash)
+                return {"chunks": 0, "ids": [], "skipped": True, "hash": fhash,
+                        "raw_chars": len(text), "restructured_chars": 0}
+            self._vs.delete_by_hash(fhash)
+
+        # LLM 整理
+        restructured = self._restructure(text)
+        logger.info("      -> restructured: %d chars", len(restructured))
+
+        # 保存
+        transcripts_dir = self._cfg.output_transcripts_dir
+        transcripts_dir.mkdir(parents=True, exist_ok=True)
+        out_path = transcripts_dir / f"{source_name}_restructured.md"
+        write_text(out_path, restructured)
+
+        # 分段 + 入库
+        text_chunks = chunk_by_paragraphs(
+            restructured,
+            chunk_size=self._cfg.text_chunk_size,
+            overlap=self._cfg.text_chunk_overlap,
+        )
+        metadatas = [{
+            "source": source_name,
+            "source_name": source_name,
+            "chunk_index": i,
+            "total_chunks": len(text_chunks),
+            "file_hash": fhash,
+            "restructured": True,
+            "raw_chars": len(text),
+            "restructured_chars": len(restructured),
+        } for i in range(len(text_chunks))]
+
+        ids = self._vs.add_texts(text_chunks, metadatas)
+        logger.info("IngestText DONE: chunks=%d", len(ids))
+        return {
+            "chunks": len(ids),
+            "ids": ids,
+            "skipped": False,
+            "hash": fhash,
+            "raw_chars": len(text),
+            "restructured_chars": len(restructured),
+            "restructured_path": str(out_path),
+        }
 
     def run(self, audio_path: str, force: bool = False) -> dict:
         audio_path = Path(audio_path)

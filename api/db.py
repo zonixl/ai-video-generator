@@ -17,6 +17,7 @@ class JobStatus(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 def _get_conn() -> sqlite3.Connection:

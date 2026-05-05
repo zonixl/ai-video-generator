@@ -86,6 +86,17 @@ class NukeRequest(BaseModel):
     confirm: bool = Field(False, description="确认清除所有数据")
 
 
+class IngestTextRequest(BaseModel):
+    text: str = Field("", description="直接输入的文本内容")
+    name: str = Field("direct_input", description="来源名称")
+    force: bool = Field(False, description="强制重新摄入")
+
+
+class SaveScriptRequest(BaseModel):
+    path: str = Field(..., description="文案文件路径")
+    content: str = Field(..., description="文案内容")
+
+
 # ---- 响应 ----
 
 class JobResponse(BaseModel):

@@ -317,6 +317,29 @@ def cmd_ingest(args):
                     result["restructured_path"])
 
 
+def cmd_ingest_text(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_ingest_pipeline(cfg)
+
+    if args.input:
+        text = Path(args.input).read_text(encoding="utf-8")
+        source_name = Path(args.input).stem
+    elif args.text:
+        text = args.text
+        source_name = args.name or "direct_input"
+    else:
+        logger.error("需要 --text 或 --input 参数")
+        return
+
+    result = pipeline.ingest_text(text, source_name=source_name, force=args.force)
+    if result.get("skipped"):
+        logger.info("ingest-text skipped: duplicate (hash=%s)", result["hash"])
+        return
+    logger.info("ingest-text completed: %d chunks, raw=%d chars, restructured=%d chars",
+                result["chunks"], result["raw_chars"], result["restructured_chars"])
+
+
 def cmd_generate(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
@@ -555,6 +578,12 @@ def main():
     p_ingest.add_argument("--input", "-i", required=True, help="音频文件或文件夹路径")
     p_ingest.add_argument("--force", "-f", action="store_true", help="强制重新摄入（覆盖已有数据）")
 
+    p_ingest_text = subparsers.add_parser("ingest-text", help="直接文本摄入知识库")
+    p_ingest_text.add_argument("--text", "-t", default=None, help="直接输入文本内容")
+    p_ingest_text.add_argument("--input", "-i", default=None, help="文本文件路径")
+    p_ingest_text.add_argument("--name", "-n", default=None, help="来源名称（默认 direct_input）")
+    p_ingest_text.add_argument("--force", "-f", action="store_true", help="强制重新摄入")
+
     p_gen = subparsers.add_parser("generate", help="根据话题生成文案")
     p_gen.add_argument("--topic", "-t", required=True, help="话题/关键词")
     p_gen.add_argument("--style", "-s", default=None, help="文案风格（可选）")
@@ -664,6 +693,7 @@ def main():
 
     commands = {
         "ingest": cmd_ingest,
+        "ingest-text": cmd_ingest_text,
         "generate": cmd_generate,
         "polish": cmd_polish,
         "produce": cmd_produce,
