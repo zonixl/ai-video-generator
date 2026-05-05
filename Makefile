@@ -19,6 +19,7 @@ help:
 		echo "    make status      view knowledge base"; \
 		echo "    make clear       clear knowledge base"; \
 		echo "    make nuke        clear ALL data"; \
+	echo "    make serve       start REST API server"; \
 		echo "    make test        run tests"; \
 		echo "    make preview     open Remotion Studio"; \
 		echo ""; \
@@ -42,8 +43,9 @@ help:
 			review) uv run python main.py review-video --help ;; \
 			clear) uv run python main.py clear --help ;; \
 			nuke) uv run python main.py nuke --help ;; \
+			serve) uv run python main.py serve --help ;; \
 			status) uv run python main.py status --help ;; \
-			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic review clear nuke status" ;; \
+			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic review clear nuke status serve" ;; \
 		esac \
 	fi
 
@@ -76,6 +78,9 @@ review:
 
 seedance:
 	uv run python main.py produce-seedance $(ARGS)
+
+serve:
+	uv run python main.py serve $(ARGS)
 
 preview:
 	@cmd /C "cd remotion && npm run preview"

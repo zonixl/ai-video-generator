@@ -514,6 +514,14 @@ def cmd_nuke(args):
     logger.info("nuke complete - all data wiped")
 
 
+def cmd_serve(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    from api.app import start
+    logger.info("Starting API server on %s:%d", args.host, args.port)
+    start(host=args.host, port=args.port)
+
+
 def cmd_clear(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
@@ -644,6 +652,10 @@ def main():
     p_nuke = subparsers.add_parser("nuke", help="清除所有数据（知识库+转写+文案+日志）")
     p_nuke.add_argument("--confirm", action="store_true", help="确认清除所有数据")
 
+    p_serve = subparsers.add_parser("serve", help="启动 REST API 服务")
+    p_serve.add_argument("--host", default="0.0.0.0", help="监听地址 (默认: 0.0.0.0)")
+    p_serve.add_argument("--port", type=int, default=8000, help="监听端口 (默认: 8000)")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -661,6 +673,7 @@ def main():
         "status": cmd_status,
         "clear": cmd_clear,
         "nuke": cmd_nuke,
+        "serve": cmd_serve,
     }
     commands[args.command](args)
 
