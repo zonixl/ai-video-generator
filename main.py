@@ -192,6 +192,7 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
         kinetic_planner = KineticTextPlanner(build_model_manager(cfg))
     # Image provider (for image_* templates)
     image_provider = build_image_provider(cfg)
+    model_mgr = build_model_manager(cfg)
     return ProduceRemotionPipeline(
         cfg,
         planner=planner,
@@ -200,6 +201,7 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
         tts_provider=build_tts_provider(cfg),
         kinetic_planner=kinetic_planner,
         image_provider=image_provider,
+        model_manager=model_mgr,
     )
 
 
@@ -381,6 +383,9 @@ def cmd_produce(args):
 def cmd_produce_remotion(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
+    # --tts-mode 运行时覆盖配置
+    if getattr(args, 'tts_mode', None):
+        cfg._flat["tts_mode"] = args.tts_mode
     refine_enabled = args.refine or args.step == "refine" or cfg.remotion_refine_enabled
     # --template kinetic_text 自动启用 kinetic planner
     kinetic = args.kinetic or args.template == "kinetic_text"
@@ -631,6 +636,7 @@ def main():
     )
     p_remotion.add_argument("--force", action="store_true", help="强制重做 Remotion input")
     p_remotion.add_argument("--tts", action="store_true", default=False, help="启用 TTS 语音合成")
+    p_remotion.add_argument("--tts-mode", choices=("per_scene", "whole_article"), default=None, help="TTS 模式: per_scene=逐场景情绪(默认), whole_article=整篇统一风格")
     p_remotion.add_argument("--kinetic", action="store_true", default=False, help="启用逐词动态文字模式")
     p_remotion.add_argument("--template", default=None, help="强制指定模板（如 kinetic_text, image_elegant 等），不传则 AI 自行决策")
     p_remotion.add_argument("--refine", action="store_true", help="在 all 流程中启用视觉自迭代")

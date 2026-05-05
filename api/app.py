@@ -240,7 +240,8 @@ def produce_remotion(req: ProduceRemotionRequest):
         script=req.script, job_id=req.job_id, output=req.output, title=req.title,
         width=req.width, height=req.height, orientation=req.orientation,
         fps=req.fps, step=req.step, force=req.force,
-        tts=req.use_tts, kinetic=req.kinetic, template=req.template,
+        tts=req.use_tts, tts_mode=req.tts_mode,
+        kinetic=req.kinetic, template=req.template,
         refine=req.refine, refine_rounds=req.refine_rounds,
         review_only=req.review_only,
     )

@@ -34,6 +34,7 @@ class ProduceRemotionPipeline:
         tts_provider=None,
         kinetic_planner=None,
         image_provider=None,
+        model_manager=None,
     ):
         self._cfg = config
         self._planner = planner or RuleBasedRemotionPlanner()
@@ -42,6 +43,7 @@ class ProduceRemotionPipeline:
         self._tts_provider = tts_provider or EdgeTTSProvider()
         self._kinetic_planner = kinetic_planner
         self._image_provider = image_provider
+        self._model_manager = model_manager
 
     def run(
         self,
@@ -96,7 +98,8 @@ class ProduceRemotionPipeline:
 
         # ---- Step: tts ----
         if step in {"all", "tts"} and use_tts:
-            logger.info("[2/5] Generating per-scene TTS audio ...")
+            tts_mode = self._cfg.tts_mode
+            logger.info("[2/5] Generating TTS audio (mode=%s) ...", tts_mode)
             audio_asset = self._synthesize_audio(spec, job_id)
             # _synthesize_audio 内部已按每句话的实际音频时长设置 scene.duration
             self._copy_audio_for_remotion(audio_asset, job_id)
@@ -248,7 +251,13 @@ class ProduceRemotionPipeline:
     # ---- tts ----
 
     def _synthesize_audio(self, spec: RemotionVideoSpec, job_id: str):
-        """逐 scene 合成独立 TTS 音频，精确匹配每句话的时长。"""
+        """根据配置选择 TTS 模式：per_scene 或 whole_article。"""
+        if self._cfg.tts_mode == "whole_article":
+            return self._synthesize_audio_whole_article(spec, job_id)
+        return self._synthesize_audio_per_scene(spec, job_id)
+
+    def _synthesize_audio_per_scene(self, spec: RemotionVideoSpec, job_id: str):
+        """逐 scene 合成独立 TTS 音频，每 scene 使用各自的 tts_emotion。"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         scene_dir = self._cfg.output_videos_dir / job_id / "audio_scenes"
@@ -315,6 +324,96 @@ class ProduceRemotionPipeline:
         # 拼接所有 scene 音频为一个文件
         audio_path = self._audio_path(job_id)
         clip_paths = [path for _, _, _, path in tasks if path.exists()]
+        if not clip_paths:
+            raise RuntimeError(f"No scene audio clips generated (all {len(tasks)} tasks failed)")
+        self._concat_audio_clips(clip_paths, audio_path)
+        duration = _audio_duration(audio_path)
+        logger.info("      -> concatenated audio %.1fs saved: %s", duration, audio_path)
+        from core.schema import AudioAsset
+        return AudioAsset(path=str(audio_path), duration=duration, provider="edge-tts" if is_edge else "iflytek", voice=voice)
+
+    def _synthesize_audio_whole_article(self, spec: RemotionVideoSpec, job_id: str):
+        """整篇文章统一风格合成：AI 选一个风格，所有 scene 用同一 emotion。"""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        scene_dir = self._cfg.output_videos_dir / job_id / "audio_scenes"
+        scene_dir.mkdir(parents=True, exist_ok=True)
+        voice = self._cfg.tts_voice
+        rate = self._cfg.tts_speed
+        is_edge = (hasattr(self._tts_provider, 'provider_name') and
+                   self._tts_provider.provider_name == 'edge-tts')
+
+        # 1. 拼接全文用于风格分析
+        scene_texts: list[tuple[int, str]] = []
+        for scene in spec.scenes:
+            text = scene.subtitle.strip()
+            if text:
+                scene_texts.append((scene.scene_index, text))
+        if not scene_texts:
+            raise RuntimeError("No scene text for whole-article TTS")
+        full_text = "\n".join(text for _, text in scene_texts)
+
+        # 2. AI 选择统一风格
+        try:
+            from core.tts_style_planner import TTSStylePlanner
+            style_planner = TTSStylePlanner(self._model_manager)
+            unified_emotion = style_planner.plan(full_text)
+            logger.info("      [whole_article] AI unified style: %s", unified_emotion)
+        except Exception as exc:
+            logger.warning("      [whole_article] Style planning failed (%s), using default", exc)
+            unified_emotion = "叙事平缓"
+
+        # 3. 逐 scene 合成，全部用同一个 emotion
+        tasks: list[tuple[int, str, Path]] = []
+        for scene_index, text in scene_texts:
+            path = scene_dir / f"scene_{scene_index:03d}.mp3"
+            tasks.append((scene_index, text, path))
+
+        done, failed = 0, 0
+
+        if is_edge:
+            for idx, text, path in tasks:
+                try:
+                    asset = self._tts_provider.synthesize(text, path, voice=voice, rate=rate, emotion=unified_emotion)
+                    for scene in spec.scenes:
+                        if scene.scene_index == idx:
+                            scene.duration = round(max(1.0, asset.duration), 2)
+                            break
+                    done += 1
+                    logger.info("      scene %03d: %.1fs (unified: %s)", idx, asset.duration, unified_emotion)
+                except Exception as exc:
+                    failed += 1
+                    logger.error("      scene %03d TTS FAILED: %s", idx, exc)
+        else:
+            with ThreadPoolExecutor(max_workers=min(3, len(tasks))) as executor:
+                futures = {
+                    executor.submit(
+                        self._tts_provider.synthesize, text, path, voice=voice, rate=rate, emotion=unified_emotion
+                    ): (idx, path)
+                    for idx, text, path in tasks
+                }
+                for future in as_completed(futures):
+                    idx, path = futures[future]
+                    try:
+                        asset = future.result()
+                        for scene in spec.scenes:
+                            if scene.scene_index == idx:
+                                scene.duration = round(max(1.0, asset.duration), 2)
+                                break
+                        done += 1
+                        logger.debug("      scene %03d: %.1fs", idx, asset.duration)
+                    except Exception as exc:
+                        failed += 1
+                        logger.error("      scene %03d TTS FAILED: %s", idx, exc)
+
+        if failed > 0:
+            logger.warning("      %d/%d scene TTS tasks failed", failed, len(tasks))
+        logger.info("      -> %d scene audio clips (%.1fs total, unified style: %s)",
+                    done, spec.total_duration, unified_emotion)
+
+        # 4. 拼接音频
+        audio_path = self._audio_path(job_id)
+        clip_paths = [path for _, _, path in tasks if path.exists()]
         if not clip_paths:
             raise RuntimeError(f"No scene audio clips generated (all {len(tasks)} tasks failed)")
         self._concat_audio_clips(clip_paths, audio_path)

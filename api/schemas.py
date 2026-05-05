@@ -45,6 +45,7 @@ class ProduceRemotionRequest(BaseModel):
     step: str = Field("all", description="执行阶段")
     force: bool = Field(False, description="强制重做")
     use_tts: bool = Field(False, description="启用 TTS 配音")
+    tts_mode: str | None = Field(None, description="TTS 模式: per_scene / whole_article")
     kinetic: bool = Field(False, description="启用逐词动态文字模式")
     template: str | None = Field(None, description="强制指定模板")
     refine: bool = Field(False, description="启用视觉自迭代")

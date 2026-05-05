@@ -57,3 +57,9 @@ OLD_SPLIT_SCENES = _load("OLD_SPLIT_SCENES")
 # ============================================================
 SYSTEM_KINETIC_PLANNER = _load("SYSTEM_KINETIC_PLANNER")
 PLAN_KINETIC_TEXT = _load("PLAN_KINETIC_TEXT")
+
+# ============================================================
+# TTS 风格规划
+# ============================================================
+SYSTEM_TTS_STYLE = _load("SYSTEM_TTS_STYLE")
+PLAN_TTS_WHOLE_STYLE = _load("PLAN_TTS_WHOLE_STYLE")

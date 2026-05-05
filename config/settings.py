@@ -166,6 +166,8 @@ class Settings:
     def tts_mimo_api_key(self) -> str:          return self._get_nested("tts_mimo", "api_key", "")
     @property
     def tts_mimo_model(self) -> str:            return self._get_nested("tts_mimo", "model", "mimo-v2.5-tts")
+    @property
+    def tts_mode(self) -> str:                  return self._get("tts_mode", "per_scene")
 
     def _get_nested(self, parent_key: str, child_key: str, default: str = "") -> str:
         nested = self._get(parent_key, {})

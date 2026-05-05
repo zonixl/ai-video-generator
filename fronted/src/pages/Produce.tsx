@@ -90,6 +90,7 @@ export default function Produce() {
   const [refine, setRefine] = useState(false)
   const [refineRounds, setRefineRounds] = useState<number | ''>('')
   const [reviewOnly, setReviewOnly] = useState(false)
+  const [ttsMode, setTtsMode] = useState('per_scene')
 
   const { data: scripts } = useScripts()
   const { data: job } = useJob(jobId)
@@ -149,6 +150,7 @@ export default function Produce() {
         if (userImages.trim()) params.user_images = userImages.trim()
       } else {
         params.use_tts = audioMode === 'tts'
+        if (audioMode === 'tts') params.tts_mode = ttsMode
         if (orientation) params.orientation = orientation
         params.kinetic = kinetic
         if (template) params.template = template
@@ -409,6 +411,34 @@ export default function Produce() {
                     ))}
                   </div>
                 </div>
+
+                {/* ---- TTS 合成模式（仅 Remotion + TTS 时显示） ---- */}
+                {engine === 'remotion' && audioMode === 'tts' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">TTS 合成模式</label>
+                    <div className="flex gap-3">
+                      {[
+                        { v: 'per_scene', label: '逐场景情绪', desc: '每段独立情绪，风格多变但可能不连贯' },
+                        { v: 'whole_article', label: '整篇统一', desc: '全文统一风格，语调自然连贯' },
+                      ].map((o) => (
+                        <motion.div key={o.v} whileTap={{ scale: 0.97 }}>
+                          <Badge
+                            variant={ttsMode === o.v ? 'default' : 'outline'}
+                            className="cursor-pointer px-4 py-2 text-sm"
+                            onClick={() => setTtsMode(o.v)}
+                          >
+                            {o.label}
+                          </Badge>
+                        </motion.div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {ttsMode === 'per_scene'
+                        ? '每段文案独立选择情绪风格，适合内容差异大的视频'
+                        : 'AI 分析全文基调后选择统一风格，语音更自然连贯'}
+                    </p>
+                  </div>
+                )}
 
                 {/* ---- Seedance 专属 ---- */}
                 {engine === 'seedance' && (
