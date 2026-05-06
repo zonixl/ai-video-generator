@@ -141,6 +141,8 @@ class Settings:
     def output_remotion_dir(self) -> Path:      return self._resolve_path("output_remotion_dir")
     @property
     def output_video_reviews_dir(self) -> Path: return self._resolve_path("output_video_reviews_dir")
+    @property
+    def output_tweets_dir(self) -> Path:       return self._resolve_path("output_tweets_dir")
 
     # ---- tts 段 ----
     @property

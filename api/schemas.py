@@ -70,6 +70,14 @@ class ProduceSeedanceRequest(BaseModel):
     user_images: str | None = Field(None, description="用户自定义图片目录")
 
 
+class GenerateTweetRequest(BaseModel):
+    topic: str | None = Field(None, description="话题/关键词（与 draft 二选一）")
+    draft_path: str | None = Field(None, description="文章初稿文件路径（与 topic 二选一）")
+    feedback: str | None = Field(None, description="润色意见（可选）")
+    output: str | None = Field(None, description="输出 MD 路径（可选）")
+    no_images: bool = Field(False, description="只生成文字，不生成配图")
+
+
 class ReviewVideoRequest(BaseModel):
     video: str = Field(..., description="待审查 mp4 路径")
     job_id: str | None = Field(None, description="审查任务 ID")

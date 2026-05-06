@@ -17,6 +17,7 @@ from api import db
 from api.schemas import (
     ClearRequest,
     GenerateRequest,
+    GenerateTweetRequest,
     IngestTextRequest,
     NukeRequest,
     PolishRequest,
@@ -275,6 +276,19 @@ def review_video(req: ReviewVideoRequest):
         reviewer_instance=req.reviewer_instance,
     )
     return _run_async("review-video", req.model_dump(), cmd_review_video, args)
+
+
+@app.post("/api/generate-tweet", tags=["内容生成"])
+def generate_tweet(req: GenerateTweetRequest):
+    """生成图文推文：话题/初稿 → 知识库润色 → 插图 → 输出 MD。"""
+    from main import cmd_tweet
+
+    args = _make_args(
+        topic=req.topic, draft=req.draft_path,
+        feedback=req.feedback, output=req.output,
+        no_images=req.no_images,
+    )
+    return _run_async("tweet", req.model_dump(), cmd_tweet, args)
 
 
 # ============================================================

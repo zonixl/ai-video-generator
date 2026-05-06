@@ -74,6 +74,13 @@ export const api = {
       body: JSON.stringify(params),
     }),
 
+  // 图文推文
+  generateTweet: (params: Record<string, any>) =>
+    request<{ job_id: string }>('/generate-tweet', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
   // 摄入
   ingest: (file: File, force?: boolean) => {
     const form = new FormData()

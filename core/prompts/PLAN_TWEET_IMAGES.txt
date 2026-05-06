@@ -1,0 +1,17 @@
+请分析以下推文内容，选择 2-4 个最适合配图的段落，并为每张图生成英文的图片描述 prompt。
+
+推文内容：
+{article}
+
+请输出严格 JSON 数组（不要 Markdown 代码块），格式如下：
+[
+  {"paragraph_index": 1, "image_prompt": "minimalist illustration of a person reading in a modern library, warm lighting", "position": "after"},
+  {"paragraph_index": 4, "image_prompt": "infographic showing the relationship between reading time and memory retention", "position": "after"}
+]
+
+规则：
+- paragraph_index 从 0 开始计数（标题不算，第一段正文为 0）
+- image_prompt 用英文写，简洁描述画面内容，适合文生图模型理解
+- position 固定为 "after"（插在该段之后）
+- 选择最适合视觉化的段落：描述场景、对比、流程、数据、情感的段落优先
+- 避免选择纯总结性段落或过渡性段落

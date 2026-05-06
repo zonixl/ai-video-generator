@@ -63,3 +63,11 @@ PLAN_KINETIC_TEXT = _load("PLAN_KINETIC_TEXT")
 # ============================================================
 SYSTEM_TTS_STYLE = _load("SYSTEM_TTS_STYLE")
 PLAN_TTS_WHOLE_STYLE = _load("PLAN_TTS_WHOLE_STYLE")
+
+# ============================================================
+# 图文推文生成
+# ============================================================
+SYSTEM_TWEET_WRITER = _load("SYSTEM_TWEET_WRITER")
+GENERATE_TWEET = _load("GENERATE_TWEET")
+POLISH_TWEET = _load("POLISH_TWEET")
+PLAN_TWEET_IMAGES = _load("PLAN_TWEET_IMAGES")

@@ -33,6 +33,7 @@ from pipeline.generate import GeneratePipeline
 from pipeline.produce import ProducePipeline
 from pipeline.produce_remotion import ProduceRemotionPipeline
 from pipeline.produce_seedance import ProduceSeedancePipeline
+from pipeline.tweet import TweetPipeline
 
 logger = logging.getLogger("main")
 
@@ -86,6 +87,29 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
         mmr_lambda=cfg.retrieval_mmr_lambda,
     )
     return GeneratePipeline(retriever, model_mgr, cfg)
+
+
+def build_tweet_pipeline(cfg: Settings) -> TweetPipeline:
+    model_mgr = build_model_manager(cfg)
+    embedder = Embedder(
+        model_name=cfg.embedding_model_name,
+        device=cfg.embedding_device,
+        normalize=cfg.embedding_normalize,
+    )
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+        embedder=embedder,
+    )
+    retriever = Retriever(
+        vector_store=vs,
+        embedder=embedder,
+        strategy=cfg.retrieval_strategy,
+        top_k=cfg.retrieval_top_k,
+        mmr_lambda=cfg.retrieval_mmr_lambda,
+    )
+    image_provider = build_image_provider(cfg)
+    return TweetPipeline(retriever, model_mgr, image_provider, cfg)
 
 
 def build_tts_provider(cfg: Settings):
@@ -356,6 +380,23 @@ def cmd_polish(args):
     pipeline = build_generate_pipeline(cfg)
     polished = pipeline.polish_to_file(args.input, args.feedback)
     logger.info("polish completed: %d chars", len(polished))
+
+
+def cmd_tweet(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    if not args.topic and not args.draft:
+        logger.error("必须提供 --topic 或 --draft 之一")
+        return
+    pipeline = build_tweet_pipeline(cfg)
+    out_path = pipeline.run(
+        topic=args.topic,
+        draft_path=args.draft,
+        feedback=args.feedback or "",
+        output_path=args.output,
+        no_images=args.no_images,
+    )
+    logger.info("tweet completed: %s", out_path)
 
 
 def cmd_produce(args):
@@ -691,6 +732,13 @@ def main():
     p_serve.add_argument("--host", default="0.0.0.0", help="监听地址 (默认: 0.0.0.0)")
     p_serve.add_argument("--port", type=int, default=8000, help="监听端口 (默认: 8000)")
 
+    p_tweet = subparsers.add_parser("tweet", help="生成图文推文")
+    p_tweet.add_argument("--topic", "-t", default=None, help="话题/关键词（与 --draft 二选一）")
+    p_tweet.add_argument("--draft", "-d", default=None, help="文章初稿文件路径（与 --topic 二选一）")
+    p_tweet.add_argument("--feedback", "-f", default=None, help="润色意见（可选）")
+    p_tweet.add_argument("--output", "-o", default=None, help="输出 MD 路径（可选）")
+    p_tweet.add_argument("--no-images", action="store_true", help="只生成文字，不生成配图")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -702,6 +750,7 @@ def main():
         "ingest-text": cmd_ingest_text,
         "generate": cmd_generate,
         "polish": cmd_polish,
+        "tweet": cmd_tweet,
         "produce": cmd_produce,
         "produce-remotion": cmd_produce_remotion,
         "produce-seedance": cmd_produce_seedance,

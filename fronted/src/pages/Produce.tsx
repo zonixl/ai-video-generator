@@ -21,7 +21,7 @@ const steps = [
   { label: '完成', icon: Check },
 ]
 
-type EngineType = 'seedance' | 'remotion'
+type EngineType = 'seedance' | 'remotion' | 'tweet'
 
 const engineSteps: Record<EngineType, { value: string; label: string; desc: string }[]> = {
   seedance: [
@@ -41,6 +41,9 @@ const engineSteps: Record<EngineType, { value: string; label: string; desc: stri
     { value: 'image', label: '图片', desc: '生成场景图片' },
     { value: 'refine', label: '精修', desc: '视觉自迭代优化' },
     { value: 'render', label: '渲染', desc: '渲染最终视频' },
+  ],
+  tweet: [
+    { value: 'all', label: '一键生成', desc: '润色 + 插图 + 排版，一键完成' },
   ],
 }
 
@@ -92,6 +95,12 @@ export default function Produce() {
   const [reviewOnly, setReviewOnly] = useState(false)
   const [ttsMode, setTtsMode] = useState('per_scene')
 
+  // Tweet 专属
+  const [tweetTopic, setTweetTopic] = useState('')
+  const [tweetDraft, setTweetDraft] = useState('')
+  const [tweetFeedback, setTweetFeedback] = useState('')
+  const [tweetNoImages, setTweetNoImages] = useState(false)
+
   const { data: scripts } = useScripts()
   const { data: job } = useJob(jobId)
   const { data: allJobs } = useJobs()
@@ -122,11 +131,32 @@ export default function Produce() {
   }
 
   const handleStart = async () => {
-    if (!scriptPath) {
-      toast.error('请选择文案文件')
-      return
-    }
     try {
+      // Tweet 模式：独立逻辑
+      if (engine === 'tweet') {
+        if (!tweetTopic && !tweetDraft) {
+          toast.error('请输入话题或提供初稿路径')
+          return
+        }
+        const params: Record<string, any> = {}
+        if (tweetTopic) params.topic = tweetTopic
+        if (tweetDraft && tweetDraft !== 'draft') params.draft_path = tweetDraft
+        if (tweetFeedback) params.feedback = tweetFeedback
+        if (output) params.output = output
+        params.no_images = tweetNoImages
+
+        const res = await api.generateTweet(params)
+        setJobId(res.job_id)
+        setStep(2)
+        toast.success('推文任务已提交')
+        return
+      }
+
+      // 视频模式
+      if (!scriptPath) {
+        toast.error('请选择文案文件')
+        return
+      }
       const params: Record<string, any> = {
         script: scriptPath,
         title: title || undefined,
@@ -185,8 +215,12 @@ export default function Produce() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">视频制作</h1>
-        <p className="mt-1 text-muted-foreground">向导式视频生产流程</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {engine === 'tweet' ? '图文推文' : '视频制作'}
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          {engine === 'tweet' ? '话题/初稿 → 知识库润色 → 插图 → 排版输出' : '向导式视频生产流程'}
+        </p>
       </div>
 
       {/* 步骤指示器 */}
@@ -281,7 +315,7 @@ export default function Produce() {
                     className="flex-1"
                   />
                 </div>
-                <Button onClick={() => setStep(1)} disabled={!scriptPath}>
+                <Button onClick={() => setStep(1)} disabled={engine !== 'tweet' && !scriptPath}>
                   下一步
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -327,7 +361,7 @@ export default function Produce() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">视频引擎</label>
                   <div className="flex gap-3">
-                    {(['seedance', 'remotion'] as EngineType[]).map((e) => (
+                    {(['seedance', 'remotion', 'tweet'] as EngineType[]).map((e) => (
                       <motion.div key={e} whileTap={{ scale: 0.97 }}>
                         <Badge
                           variant={engine === e ? 'default' : 'outline'}
@@ -337,7 +371,7 @@ export default function Produce() {
                             setPipelineStep('all')
                           }}
                         >
-                          {e === 'seedance' ? 'Seedance 图生视频' : 'Remotion 图示'}
+                          {e === 'seedance' ? 'Seedance 图生视频' : e === 'remotion' ? 'Remotion 图示' : '图文推文'}
                         </Badge>
                       </motion.div>
                     ))}
@@ -549,6 +583,79 @@ export default function Produce() {
                   </div>
                 )}
 
+                {/* ---- 图文推文专属 ---- */}
+                {engine === 'tweet' && (
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium">图文推文选项</label>
+
+                    {/* 输入方式 */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">输入方式</label>
+                      <div className="flex gap-3">
+                        <Badge
+                          variant={!tweetDraft ? 'default' : 'outline'}
+                          className="cursor-pointer px-4 py-2 text-sm"
+                          onClick={() => { setTweetDraft(''); setTweetTopic('') }}
+                        >
+                          话题生成
+                        </Badge>
+                        <Badge
+                          variant={tweetDraft ? 'default' : 'outline'}
+                          className="cursor-pointer px-4 py-2 text-sm"
+                          onClick={() => { setTweetTopic(''); setTweetDraft('draft') }}
+                        >
+                          初稿润色
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* 话题输入 */}
+                    {!tweetDraft && (
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">话题/关键词</label>
+                        <Input
+                          placeholder="如：为什么养成阅读习惯很重要"
+                          value={tweetTopic}
+                          onChange={(e) => setTweetTopic(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {/* 初稿路径 */}
+                    {tweetDraft && (
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">初稿文件路径</label>
+                        <Input
+                          placeholder="如：outputs/scripts/xxx.md"
+                          value={tweetDraft === 'draft' ? '' : tweetDraft}
+                          onChange={(e) => setTweetDraft(e.target.value || 'draft')}
+                        />
+                      </div>
+                    )}
+
+                    {/* 润色意见 */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">润色意见（可选）</label>
+                      <Input
+                        placeholder="如：语气再轻松一点，多举例子"
+                        value={tweetFeedback}
+                        onChange={(e) => setTweetFeedback(e.target.value)}
+                      />
+                    </div>
+
+                    {/* 选项开关 */}
+                    <div className="flex gap-3">
+                      <Badge
+                        variant={tweetNoImages ? 'outline' : 'default'}
+                        className="cursor-pointer px-3 py-1 text-xs"
+                        onClick={() => setTweetNoImages(!tweetNoImages)}
+                      >
+                        {tweetNoImages ? '不生成配图' : '生成配图'}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+
                 {/* ---- 执行步骤 ---- */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">执行步骤</label>
@@ -746,7 +853,15 @@ export default function Produce() {
                   <Button variant="outline" onClick={() => { setStep(0); setJobId(''); setResumeJobId('') }}>
                     再次制作
                   </Button>
-                  {job?.result?.video_path && (
+                  {engine === 'tweet' && job?.result && (
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <Button onClick={() => window.open(`/api/files/${job.result.output_path || job.result.video_path}`, '_blank')}>
+                        <Download className="mr-2 h-4 w-4" />
+                        下载推文
+                      </Button>
+                    </motion.div>
+                  )}
+                  {engine !== 'tweet' && job?.result?.video_path && (
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                       <Button onClick={() => window.open(`/api/files/${job.result.video_path}`, '_blank')}>
                         <Download className="mr-2 h-4 w-4" />

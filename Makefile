@@ -19,6 +19,7 @@ help:
 		echo "    make status      view knowledge base"; \
 		echo "    make clear       clear knowledge base"; \
 		echo "    make nuke        clear ALL data"; \
+	echo "    make tweet       generate image-text tweet"; \
 	echo "    make serve       start REST API server"; \
 		echo "    make test        run tests"; \
 		echo "    make preview     open Remotion Studio"; \
@@ -44,8 +45,9 @@ help:
 			clear) uv run python main.py clear --help ;; \
 			nuke) uv run python main.py nuke --help ;; \
 			serve) uv run python main.py serve --help ;; \
+			tweet) uv run python main.py tweet --help ;; \
 			status) uv run python main.py status --help ;; \
-			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic review clear nuke status serve" ;; \
+			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic tweet review clear nuke status serve" ;; \
 		esac \
 	fi
 
@@ -99,3 +101,6 @@ test:
 
 test-ssl-style:
 	uv run python tests/test_tts_styles.py
+
+tweet:
+	uv run python main.py tweet $(ARGS)
