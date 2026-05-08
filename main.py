@@ -609,6 +609,78 @@ def cmd_clear(args):
         logger.info("knowledge base already empty")
 
 
+def cmd_export_obsidian(args):
+    """导出知识库全部内容为 Obsidian 笔记。"""
+    from datetime import datetime
+    from collections import defaultdict
+
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+
+    vs = VectorStore(
+        persist_dir=cfg.vectordb_persist_dir,
+        collection_name=cfg.vectordb_collection_name,
+    )
+    all_data = vs.get_all()
+    if not all_data.get("ids"):
+        logger.warning("知识库为空，无内容可导出")
+        return
+
+    output_dir = Path(args.output) if args.output else Path("outputs/obsidian")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 按 (source_name, file_hash) 分组
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for i, doc_id in enumerate(all_data["ids"]):
+        meta = all_data["metadatas"][i] if all_data["metadatas"] else {}
+        text = all_data["documents"][i] if all_data["documents"] else ""
+        key = (meta.get("source_name", "unknown"), meta.get("file_hash", ""))
+        groups[key].append({
+            "chunk_index": meta.get("chunk_index", 0),
+            "text": text,
+            "meta": meta,
+        })
+
+    # 每组按 chunk_index 排序并写出
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    exported = 0
+    for (source_name, file_hash), chunks in groups.items():
+        chunks.sort(key=lambda c: c["chunk_index"])
+        full_text = "\n\n".join(c["text"] for c in chunks)
+        sample_meta = chunks[0]["meta"]
+
+        # 文件名：去掉扩展名，用 source_name
+        stem = Path(source_name).stem
+        safe_name = "".join(ch if ch.isalnum() or ch in "-_ " else "_" for ch in stem).strip()
+        if not safe_name:
+            safe_name = "untitled"
+
+        # 避免同名覆盖
+        out_path = output_dir / f"{safe_name}.md"
+        counter = 1
+        while out_path.exists():
+            out_path = output_dir / f"{safe_name}_{counter}.md"
+            counter += 1
+
+        frontmatter = (
+            f"---\n"
+            f"source: \"{source_name}\"\n"
+            f"hash: \"{file_hash}\"\n"
+            f"chunks: {len(chunks)}\n"
+            f"restructured: {sample_meta.get('restructured', False)}\n"
+            f"raw_chars: {sample_meta.get('raw_chars', 0)}\n"
+            f"restructured_chars: {sample_meta.get('restructured_chars', 0)}\n"
+            f"exported: \"{now}\"\n"
+            f"tags:\n  - 知识库\n"
+            f"---\n\n"
+        )
+        out_path.write_text(frontmatter + full_text, encoding="utf-8")
+        exported += 1
+        logger.info("导出: %s (%d chunks, %d chars)", out_path.name, len(chunks), len(full_text))
+
+    logger.info("导出完成: %d 篇笔记 -> %s", exported, output_dir)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="AI内容生产系统 - 短视频文案自动生成"
@@ -739,6 +811,9 @@ def main():
     p_tweet.add_argument("--output", "-o", default=None, help="输出 MD 路径（可选）")
     p_tweet.add_argument("--no-images", action="store_true", help="只生成文字，不生成配图")
 
+    p_export = subparsers.add_parser("export-obsidian", help="导出知识库为 Obsidian 笔记")
+    p_export.add_argument("--output", "-o", default=None, help="输出目录（默认 outputs/obsidian）")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -759,6 +834,7 @@ def main():
         "clear": cmd_clear,
         "nuke": cmd_nuke,
         "serve": cmd_serve,
+        "export-obsidian": cmd_export_obsidian,
     }
     commands[args.command](args)
 

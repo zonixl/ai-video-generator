@@ -21,6 +21,7 @@ help:
 		echo "    make nuke        clear ALL data"; \
 	echo "    make tweet       generate image-text tweet"; \
 	echo "    make serve       start REST API server"; \
+	echo "    make export      export knowledge base to Obsidian"; \
 		echo "    make test        run tests"; \
 		echo "    make preview     open Remotion Studio"; \
 		echo ""; \
@@ -46,8 +47,9 @@ help:
 			nuke) uv run python main.py nuke --help ;; \
 			serve) uv run python main.py serve --help ;; \
 			tweet) uv run python main.py tweet --help ;; \
+			export) uv run python main.py export-obsidian --help ;; \
 			status) uv run python main.py status --help ;; \
-			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic tweet review clear nuke status serve" ;; \
+			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic tweet export review clear nuke status serve" ;; \
 		esac \
 	fi
 
@@ -104,3 +106,6 @@ test-ssl-style:
 
 tweet:
 	uv run python main.py tweet $(ARGS)
+
+export:
+	uv run python main.py export-obsidian $(ARGS)
