@@ -15,8 +15,16 @@ ComponentType = Literal[
 ComponentSlot = Literal["title", "left_top", "left_bottom", "right_top", "right_bottom", "center", "bottom", "caption"]
 ComponentVariant = Literal["default", "primary", "success", "danger", "warning", "muted"]
 MotionType = Literal["fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"]
-IconName = Literal["sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers", "code", "settings"]
-SceneLayout = Literal["auto", "two_column_compare", "vertical_flow", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"]
+IconName = Literal[
+    "sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers",
+    "code", "settings", "monitor", "wrench", "palette", "file_text", "shield", "users", "building",
+    "message", "cpu", "bot", "book", "lightbulb",
+]
+SceneLayout = Literal[
+    "auto", "two_column_compare", "vertical_flow", "center_focus", "top_title_bottom_chart",
+    "timeline_vertical", "quote_focus", "vs_compare", "icon_grid", "three_step_flow",
+    "statement_highlight",
+]
 
 
 @dataclass
@@ -36,7 +44,7 @@ class RemotionSceneSpec:
     duration: float
     template: Literal[
         "basic_diagram", "kinetic_text",
-        "image_full", "image_elegant", "image_card", "image_modern", "image_neon",
+        "image_full", "image_elegant", "image_card", "image_modern", "image_neon", "sketch_course",
     ] = "basic_diagram"
     theme: Literal["warm_grid", "dark_grid", "clean"] = "warm_grid"
     layout: SceneLayout | str = "auto"
@@ -98,7 +106,9 @@ def component_from_dict(data: dict[str, Any], fallback_id: str) -> RemotionCompo
         variant=_choice(data.get("variant"), {"default", "primary", "success", "danger", "warning", "muted"}, "default"),
         motion=_choice(data.get("motion"), {"fade_in", "slide_in", "pop", "draw", "strike", "pulse", "none"}, "fade_in"),
         icon=_choice(data.get("icon"), {
-            "sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers", "code", "settings"
+            "sparkles", "brain", "workflow", "image", "video", "audio", "check", "x", "zap", "target", "layers",
+            "code", "settings", "monitor", "wrench", "palette", "file_text", "shield", "users", "building",
+            "message", "cpu", "bot", "book", "lightbulb",
         }, ""),
     )
 
@@ -114,11 +124,12 @@ def scene_from_dict(data: dict[str, Any], fallback_index: int) -> RemotionSceneS
         duration=float(data.get("duration", 5.0)),
         template=_choice(data.get("template"), {
             "basic_diagram", "kinetic_text",
-            "image_full", "image_elegant", "image_card", "image_modern", "image_neon",
+            "image_full", "image_elegant", "image_card", "image_modern", "image_neon", "sketch_course",
         }, "basic_diagram"),
         theme=_choice(data.get("theme"), {"warm_grid", "dark_grid", "clean"}, "warm_grid"),
         layout=_choice(data.get("layout"), {
-            "auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus"
+            "auto", "two_column_compare", "center_focus", "top_title_bottom_chart", "timeline_vertical", "quote_focus",
+            "vs_compare", "icon_grid", "three_step_flow", "statement_highlight"
         }, "auto"),
         headline=str(data.get("headline") or data.get("title") or f"Scene {fallback_index}"),
         subtitle=str(data.get("subtitle", "")),
@@ -148,4 +159,3 @@ def video_from_dict(data: dict[str, Any]) -> RemotionVideoSpec:
 def _choice(value: Any, allowed: set[str], default: str):
     value = str(value or "")
     return value if value in allowed else default
-

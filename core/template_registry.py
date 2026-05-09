@@ -16,6 +16,12 @@ class TemplateInfo:
 
 
 TEMPLATES: dict[str, TemplateInfo] = {
+    "sketch_course": TemplateInfo(
+        name="sketch_course",
+        description="warm paper-grid teaching scene with hand-drawn cards, orange labels, icon bubbles, arrows, and mobile-friendly knowledge-video layouts.",
+        needs_image=False,
+        category="static",
+    ),
     "basic_diagram": TemplateInfo(
         name="basic_diagram",
         description="图示卡片动画：卡片、箭头、指标、图表等组件的入场动画，适合数据/流程/对比类内容",

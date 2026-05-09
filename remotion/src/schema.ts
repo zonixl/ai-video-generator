@@ -35,7 +35,19 @@ export type IconName =
   | 'target'
   | 'layers'
   | 'code'
-  | 'settings';
+  | 'settings'
+  | 'monitor'
+  | 'wrench'
+  | 'palette'
+  | 'file_text'
+  | 'shield'
+  | 'users'
+  | 'building'
+  | 'message'
+  | 'cpu'
+  | 'bot'
+  | 'book'
+  | 'lightbulb';
 export type ComponentSlot =
   | 'title'
   | 'left_top'
@@ -53,7 +65,11 @@ export type SceneLayout =
   | 'center_focus'
   | 'top_title_bottom_chart'
   | 'timeline_vertical'
-  | 'quote_focus';
+  | 'quote_focus'
+  | 'vs_compare'
+  | 'icon_grid'
+  | 'three_step_flow'
+  | 'statement_highlight';
 
 export interface WordAnim {
   text: string;
@@ -96,7 +112,7 @@ export interface ComponentSpec {
 export interface RemotionSceneSpec {
   scene_index: number;
   duration: number;
-  template: 'basic_diagram' | 'kinetic_text' | 'image_full' | 'image_elegant' | 'image_card' | 'image_modern' | 'image_neon';
+  template: 'basic_diagram' | 'kinetic_text' | 'image_full' | 'image_elegant' | 'image_card' | 'image_modern' | 'image_neon' | 'sketch_course';
   theme: 'warm_grid' | 'dark_grid' | 'clean';
   layout?: SceneLayout;
   headline: string;

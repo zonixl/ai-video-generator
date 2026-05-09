@@ -29,6 +29,9 @@ class RuleBasedRemotionPlanner:
         video_plan = self._splitter.split(script, title=title, width=width, height=height, fps=fps)
         scenes = []
         for scene in video_plan.scenes:
+            if template == "sketch_course":
+                scenes.append(self._plan_sketch_course_scene(scene, video_plan.title))
+                continue
             s = RemotionSceneSpec(
                 scene_index=scene.index,
                 duration=scene.duration,
@@ -36,7 +39,6 @@ class RuleBasedRemotionPlanner:
                 subtitle=scene.subtitle,
                 components=[
                     RemotionComponentSpec("main", "card", "left_top", scene.subtitle[:18], "primary", "pop", "brain"),
-                    RemotionComponentSpec("arrow", "arrow", "center", "", "default", "draw"),
                     RemotionComponentSpec("result", "card", "right_top", "关键结论", "success", "pop", "check"),
                     RemotionComponentSpec("badge", "badge", "bottom", "AI -> Remotion", "warning", "slide_in", "workflow"),
                 ],
@@ -45,6 +47,105 @@ class RuleBasedRemotionPlanner:
                 s.template = template
             scenes.append(s)
         return RemotionVideoSpec(video_plan.title, width, height, fps, scenes)
+
+    def _plan_sketch_course_scene(self, scene, title: str) -> RemotionSceneSpec:
+        text = scene.subtitle.strip()
+        lowered = text.lower()
+        keywords = self._sketch_keywords(text)
+
+        if any(token in text for token in ("对比", "区别", "不是", "而是")) or " vs " in lowered:
+            left = keywords[0] if keywords else "旧方案"
+            right = keywords[1] if len(keywords) > 1 else "新方案"
+            result = keywords[2] if len(keywords) > 2 else (scene.visual or text[:18] or "关键差异")
+            return RemotionSceneSpec(
+                scene_index=scene.index,
+                duration=scene.duration,
+                template="sketch_course",
+                theme="warm_grid",
+                layout="vs_compare",
+                headline=title if scene.index == 1 else "关键对比",
+                subtitle=scene.subtitle,
+                visual=scene.visual,
+                components=[
+                    RemotionComponentSpec("left", "card", "left_top", left, "danger", "strike", "x"),
+                    RemotionComponentSpec("right", "card", "right_top", right, "success", "pop", "check"),
+                    RemotionComponentSpec("note", "text", "center", result, "default", "slide_in", ""),
+                    RemotionComponentSpec("result", "card", "bottom", result, "warning", "pop", "sparkles"),
+                    RemotionComponentSpec("chip1", "badge", "caption", "对比", "muted", "pop", ""),
+                    RemotionComponentSpec("chip2", "badge", "caption", "结论", "muted", "pop", ""),
+                ],
+            )
+
+        if any(token in text for token in ("步骤", "流程", "生成", "输入", "理解", "输出", "完成")):
+            steps = (keywords + ["输入", "理解", "输出"])[:3]
+            return RemotionSceneSpec(
+                scene_index=scene.index,
+                duration=scene.duration,
+                template="sketch_course",
+                theme="warm_grid",
+                layout="three_step_flow",
+                headline=title if scene.index == 1 else "自动化流程",
+                subtitle=scene.subtitle,
+                visual=scene.visual,
+                components=[
+                    RemotionComponentSpec("step1", "card", "left_top", steps[0], "default", "pop", "message"),
+                    RemotionComponentSpec("step2", "card", "center", steps[1], "warning", "pop", "brain"),
+                    RemotionComponentSpec("step3", "card", "right_top", steps[2], "success", "pop", "check"),
+                    RemotionComponentSpec("tip1", "badge", "caption", "识别意图", "muted", "pop", "target"),
+                    RemotionComponentSpec("tip2", "badge", "caption", "整理结构", "muted", "pop", "layers"),
+                    RemotionComponentSpec("tip3", "badge", "caption", "落地结果", "muted", "pop", "sparkles"),
+                ],
+            )
+
+        if any(token in text for token in ("四", "4", "几个", "核心", "分类", "能力")):
+            items = (keywords + ["核心能力", "实战场景", "日常使用", "结果沉淀"])[:4]
+            return RemotionSceneSpec(
+                scene_index=scene.index,
+                duration=scene.duration,
+                template="sketch_course",
+                theme="warm_grid",
+                layout="icon_grid",
+                headline=title if scene.index == 1 else "实战场景",
+                subtitle=scene.subtitle,
+                visual=scene.visual,
+                components=[
+                    RemotionComponentSpec("item1", "card", "left_top", items[0], "warning", "pop", "settings"),
+                    RemotionComponentSpec("item2", "card", "right_top", items[1], "success", "pop", "sparkles"),
+                    RemotionComponentSpec("item3", "card", "left_bottom", items[2], "primary", "pop", "workflow"),
+                    RemotionComponentSpec("item4", "card", "right_bottom", items[3], "warning", "pop", "file_text"),
+                    RemotionComponentSpec("badge", "badge", "bottom", scene.visual or "分类梳理", "warning", "draw", "sparkles"),
+                ],
+            )
+
+        return RemotionSceneSpec(
+            scene_index=scene.index,
+            duration=scene.duration,
+            template="sketch_course",
+            theme="warm_grid",
+            layout="statement_highlight",
+            headline=title if scene.index == 1 else "核心结论",
+            subtitle=scene.subtitle,
+            visual=scene.visual,
+            components=[
+                RemotionComponentSpec("main", "card", "center", text[:24] or "关键结论", "warning", "pop", "sparkles"),
+                RemotionComponentSpec("note1", "badge", "caption", "重点", "muted", "pop", "target"),
+                RemotionComponentSpec("note2", "badge", "caption", "解释", "muted", "pop", "book"),
+            ],
+        )
+
+    def _sketch_keywords(self, text: str) -> list[str]:
+        parts = re.split(r"[，,。、；;：:\n|/]+|不是|而是|通过|然后|再|最后|和|与|\+|->|→", text)
+        keywords: list[str] = []
+        for part in parts:
+            clean = part.strip(" “”“”'\"")
+            if not clean or len(clean) < 2:
+                continue
+            if clean in {"如果", "这些", "一个", "这个", "就是", "不是", "通过"}:
+                continue
+            keywords.append(clean[:12])
+            if len(keywords) >= 6:
+                break
+        return keywords
 
 
 class AIRemotionPlanner:
@@ -110,6 +211,20 @@ class AIRemotionPlanner:
                     data = json.loads(self._extract_json(resp))
                     data["template"] = chosen_template
                     remotion_scene = scene_from_dict(data, scene.index)
+                elif chosen_template == "sketch_course":
+                    prompt = prompts.PLAN_REMOTION_SKETCH_COURSE.format(
+                        index=scene.index,
+                        duration=scene.duration,
+                        subtitle=scene.subtitle,
+                    )
+                    resp = self._mgr.generate(
+                        self._instance_name,
+                        prompt,
+                        system_prompt=prompts.SYSTEM_REMOTION_DESIGNER,
+                    )
+                    data = json.loads(self._extract_json(resp))
+                    data["template"] = chosen_template
+                    remotion_scene = scene_from_dict(data, scene.index)
                 else:  # basic_diagram
                     prompt = prompts.PLAN_REMOTION_COMPONENTS.format(
                         index=scene.index,
@@ -134,7 +249,14 @@ class AIRemotionPlanner:
 
             except Exception:
                 logger.warning("AI Remotion planning failed for scene %03d; using fallback", scene.index, exc_info=True)
-                fallback_video = self._fallback.plan(scene.subtitle, title=base_plan.title, width=width, height=height, fps=fps)
+                fallback_video = self._fallback.plan(
+                    scene.subtitle,
+                    title=base_plan.title,
+                    width=width,
+                    height=height,
+                    fps=fps,
+                    template=chosen_template,
+                )
                 fallback_scene = fallback_video.scenes[0]
                 fallback_scene.scene_index = scene.index
                 fallback_scene.duration = scene.duration
@@ -179,4 +301,3 @@ class AIRemotionPlanner:
         if start < 0 or end < start:
             raise ValueError("No JSON object found in Remotion planner response")
         return text[start:end + 1]
-

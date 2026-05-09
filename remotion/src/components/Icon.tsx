@@ -1,15 +1,27 @@
 import React from 'react';
 import {
   AudioLines,
+  Bot,
   Brain,
+  BookOpen,
+  Building2,
   Check,
   Code2,
+  Cpu,
+  FileText,
   Image,
   Layers3,
+  Lightbulb,
+  MessageCircle,
+  Monitor,
+  Palette,
   Settings2,
+  Shield,
   Sparkles,
   Target,
+  Users,
   Video,
+  Wrench,
   Workflow,
   X,
   Zap
@@ -29,7 +41,19 @@ const icons = {
   target: Target,
   layers: Layers3,
   code: Code2,
-  settings: Settings2
+  settings: Settings2,
+  monitor: Monitor,
+  wrench: Wrench,
+  palette: Palette,
+  file_text: FileText,
+  shield: Shield,
+  users: Users,
+  building: Building2,
+  message: MessageCircle,
+  cpu: Cpu,
+  bot: Bot,
+  book: BookOpen,
+  lightbulb: Lightbulb
 };
 
 export const Icon: React.FC<{

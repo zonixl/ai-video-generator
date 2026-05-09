@@ -55,6 +55,7 @@ const sizePresets = [
 
 const remotionTemplates = [
   { value: '', label: '自动选择', desc: '由 AI 根据文案内容自动选择' },
+  { value: 'sketch_course', label: '手绘课堂', desc: '纸纹网格背景+手绘卡片、橙色标签、图标气泡，适合教学/知识讲解类' },
   { value: 'basic_diagram', label: '图示卡片', desc: '卡片、箭头、指标、图表等组件入场动画，适合数据/流程/对比类' },
   { value: 'kinetic_text', label: '灵动文字', desc: '文字逐词弹出、上浮、翻转，配合语音节奏，适合金句/观点/短文案' },
   { value: 'image_full', label: '全屏背景图', desc: 'AI 生成图片铺满屏幕，标题居中叠加，适合风景/故事/宏大主题' },

@@ -8,6 +8,7 @@ import {ImageElegantScene} from '../layouts/ImageElegantScene';
 import {ImageCardScene} from '../layouts/ImageCardScene';
 import {ImageModernScene} from '../layouts/ImageModernScene';
 import {ImageNeonScene} from '../layouts/ImageNeonScene';
+import {SketchCourseScene} from '../layouts/SketchCourseScene';
 
 const renderScene = (scene: RemotionVideoSpec['scenes'][0]) => {
   switch (scene.template) {
@@ -23,6 +24,8 @@ const renderScene = (scene: RemotionVideoSpec['scenes'][0]) => {
       return <ImageModernScene scene={scene} />;
     case 'image_neon':
       return <ImageNeonScene scene={scene} />;
+    case 'sketch_course':
+      return <SketchCourseScene scene={scene} />;
     default:
       return <BasicDiagram scene={scene} />;
   }

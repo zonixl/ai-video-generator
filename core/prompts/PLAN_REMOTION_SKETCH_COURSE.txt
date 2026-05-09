@@ -1,0 +1,82 @@
+你要为 Remotion 的 sketch_course 模板生成单个 scene 的 JSON。
+
+视觉固定：
+- 背景、网格纸、字幕由模板统一处理，你不要描述背景和字幕样式。
+- 只生成画面主体组件，风格是知识博主手写课件：少量大组件 + 2-4 个辅助小标签/注解。
+- 组件必须协同表达同一个观点，不能只放三个流程卡片。
+- 禁止使用 arrow 组件，流程关系用位置、编号、小标签表达。
+
+允许的 layout：
+- vs_compare：对比/反驳/不是 A 而是 B。推荐 4-7 个组件：左卡、右卡、结论句、底部强调卡、可选小标签。
+- three_step_flow：步骤/过程/因果链。推荐 5-7 个组件：3 个主步骤 + 2-3 个小标签，不要箭头。
+- icon_grid：分类/能力清单/四象限。推荐 5 个组件：4 个项目 + 1 个 badge 说明。
+- statement_highlight：单一观点/金句/转折。推荐 2-4 个组件：强调卡 + 解释标签。
+
+允许的 type：
+- card：主视觉块，适合关键词、概念、步骤。
+- text：短结论句，适合 vs_compare 中间说明。
+- badge：辅助小标签，适合“识别意图 / 结构化 / 结果沉淀”这类短词。
+- 不允许 arrow。
+
+variant 语义：
+- default：普通白色纸卡。
+- warning：橙色强调卡。
+- success：绿色结果卡。
+- danger：被否定/划掉的对象，motion 用 strike。
+- muted：小标签。
+- primary：次重点。
+
+motion 语义：
+- pop：卡片/标签弹入。
+- draw：小标签线绘制。
+- strike：划掉旧概念，只用于 danger。
+- slide_in：短结论句进入。
+
+icon 可选，不能乱加。只有语义明确时才加：
+- message：输入/对话
+- brain：理解/分析
+- check：完成/结果
+- shield：保障/保护
+- users：人民/用户/群体
+- building：国家/组织/机构
+- settings：配置/系统
+- wrench：工具/工程
+- palette：设计
+- file_text：内容/文档
+- cpu：计算/自动化
+- bot：Agent/AI
+- book：知识/标准
+- lightbulb：想法/洞察
+- target：目标/重点
+- layers：结构/分层
+- sparkles：亮点/增强
+
+文字要求：
+- 每个 card 文案 2-10 个字优先，最多 14 个字。
+- badge 文案 2-6 个字。
+- 不要把原字幕整句塞进卡片。
+- 不要每个组件都加 icon。
+- 不要输出 markdown，只输出 JSON。
+
+输出 JSON 格式：
+{{
+  "scene_index": {index},
+  "duration": {duration},
+  "template": "sketch_course",
+  "theme": "warm_grid",
+  "layout": "vs_compare | three_step_flow | icon_grid | statement_highlight",
+  "headline": "本页顶部标题，8-16字",
+  "subtitle": "{subtitle}",
+  "visual": "橙色主强调条或场景说明，最多14字",
+  "tts_emotion": "沉稳讲解",
+  "components": [
+    {{"id": "c1", "type": "card", "slot": "left_top", "text": "短词", "variant": "default", "motion": "pop", "icon": ""}}
+  ]
+}}
+
+当前 scene：
+- index: {index}
+- duration: {duration}
+- subtitle: {subtitle}
+
+请根据 subtitle 选择最合适的 layout 和组件组合，只输出 JSON：
