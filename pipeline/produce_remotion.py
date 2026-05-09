@@ -95,6 +95,13 @@ class ProduceRemotionPipeline:
                 force=force,
                 template=template,
             )
+        else:
+            # 非 plan 步骤，从已有计划加载 spec
+            if not input_path.exists():
+                raise FileNotFoundError(
+                    f"input.json not found: {input_path}. Run step 'plan' first."
+                )
+            spec = video_from_dict(read_json(input_path))
 
         # ---- Step: tts ----
         if step in {"all", "tts"} and use_tts:

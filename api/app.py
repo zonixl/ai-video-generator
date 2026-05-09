@@ -63,7 +63,11 @@ def _make_args(**kwargs) -> argparse.Namespace:
 
 def _run_async(job_type: str, params: dict, fn, args: argparse.Namespace) -> dict:
     """创建异步任务并在后台线程执行。"""
+    # 用户传入的 job_id 作为文件夹名（续跑场景）
+    resume_folder = params.get("job_id")
     job_id = db.create_job(job_type, params)
+    # 文件夹名优先用用户指定的（续跑），否则用 DB ID（新任务）
+    args.job_id = resume_folder or job_id
     cancel_event = threading.Event()
     _active_jobs[job_id] = cancel_event
 
@@ -409,4 +413,49 @@ def get_file(path: str):
 def start(host: str = "0.0.0.0", port: int = 8000):
     """启动 API 服务。"""
     import uvicorn
+    _sync_jobs_with_disk()
     uvicorn.run(app, host=host, port=port)
+
+
+def _sync_jobs_with_disk():
+    """扫描 outputs/videos/ 文件夹，以文件夹为准同步 DB。"""
+    from config import Settings
+
+    cfg = Settings()
+    videos_dir = cfg.output_videos_dir
+    if not videos_dir.exists():
+        return
+
+    folders = {}
+    for d in videos_dir.iterdir():
+        if not d.is_dir():
+            continue
+        # 有 input.json 或任意 mp4 文件才算有效 job 文件夹
+        has_plan = (d / "input.json").exists()
+        has_video = any(d.glob("*.mp4"))
+        if not has_plan and not has_video:
+            continue
+
+        # 推断 job type
+        name = d.name
+        if name.startswith("produce-remotion"):
+            job_type = "produce-remotion"
+        elif name.startswith("produce-seedance"):
+            job_type = "produce-seedance"
+        elif name.startswith("produce"):
+            job_type = "produce"
+        else:
+            job_type = "unknown"
+
+        status = "success" if has_video else "pending"
+        folders[name] = {
+            "type": job_type,
+            "status": status,
+            "created_at": d.stat().st_mtime,
+        }
+
+    if folders:
+        result = db.sync_jobs(folders)
+        if result["created"] or result["deleted"]:
+            logger.info("Jobs synced: +%d created, -%d deleted (total %d folders)",
+                        result["created"], result["deleted"], len(folders))

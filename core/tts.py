@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -76,16 +77,16 @@ class iFLYTEKProvider(TTSProvider):
                     "vcn": voice,
                     "language": "zh",
                     "speed": speed,
-                    "volume": 50,
-                    "pitch": 50,
-                    "rhy": 1,
+                    "volume": 45,
+                    "pitch": 47,
+                    "rhy": 0,
                     "bgs": 0,
                     "reg": 0,
                     "rdn": 0,
                     "scn": 0,
                     "audio": {
                         "encoding": "lame",
-                        "sample_rate": 16000,
+                        "sample_rate": 24000,
                         "channels": 1,
                         "bit_depth": 16,
                         "frame_size": 0,
@@ -187,38 +188,6 @@ class iFLYTEKProvider(TTSProvider):
         }
 
 
-# ---- MiMo 风格预设 — 自然语言控制（user）+ 标签控制（assistant）----
-# user 内容：一句自然语言描述风格
-# assistant 内容：(标签)待合成文本
-MIMO_STYLES: dict[str, str] = {}
-MIMO_STYLES["自信坚定"] = (
-    "用沉稳自信的语调分享一个确信有用的方法论，语气松弛有亲和力，像过来人在跟好朋友说掏心窝子的话，"
-    "遇到关键词时微微加重强调。"
-)
-MIMO_STYLES["温柔亲切"] = (
-    "用温柔轻声的语调分享心得，音色偏暖偏轻，不赶时间不刻意，像在安慰人，句尾轻轻软下来，让人觉得舒服放松。"
-)
-MIMO_STYLES["娓娓道来"] = (
-    "像在饭桌上跟朋友讲一件有意思的事，语调有明显的起伏，像波浪一样有高有低，生动自然地聊天。"
-)
-MIMO_STYLES["严肃沉稳"] = (
-    "用深沉郑重的语调说一个被忽视的事实，音色偏低沉，每个字都咬得很稳，句间留稍长停顿让人消化。"
-)
-MIMO_STYLES["兴奋激动"] = (
-    "像刚查到惊喜结果忍不住告诉同事，声音明亮有穿透力，句尾微微上扬带着压不住的兴奋，真实的开心。"
-)
-MIMO_STYLES["急促紧张"] = (
-    "用紧凑有力的语调传递信息，制造连贯的紧迫感，在最重要的词上加重语气形成反差，像在紧急提醒。"
-)
-MIMO_STYLES["低沉神秘"] = (
-    "像在黑暗房间里对一小群人讲秘密，声音不大但每个字都让人想听下去，气声比例高，尾音微微拖一点，深夜电台的低语感。"
-)
-MIMO_STYLES["叙事平缓"] = (
-    "用最自然松弛的语气分享观点，像跟朋友发语音消息一样，不端不播音腔，开头稍微提气吸引注意，中间平缓展开，结尾微微加重收束。"
-)
-
-MIMO_DEFAULT_STYLE = MIMO_STYLES["叙事平缓"]
-
 class MiMoProvider(TTSProvider):
     """小米 MiMo 语音合成 Provider — 自然语言控制 + 标签控制。"""
 
@@ -230,56 +199,69 @@ class MiMoProvider(TTSProvider):
         "不要添加任何语气词，不要添加额外声音，不要即兴发挥。"
     )
 
+    MIMO_PRESET_VOICES = {
+        "mimo_default", "冰糖", "茉莉", "苏打", "白桦",
+        "Mia", "Chloe", "Milo", "Dean",
+    }
+
     def __init__(self, *, base_url: str, api_key: str, model: str):
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._model = model
         logger.info("MiMoProvider initialized: base_url=%s model=%s", self._base_url, model)
 
-    def synthesize(self, text: str, output_path: str | Path, *, voice: str, rate: float = 1.0, emotion: str = "") -> AudioAsset:
+    def synthesize(
+        self,
+        text: str,
+        output_path: str | Path,
+        *,
+        voice: str,
+        rate: float = 1.0,
+        emotion: str = "",
+        use_audio_tag: bool = False,
+        audio_format: str = "mp3",
+    ) -> AudioAsset:
         from openai import OpenAI
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # user: 自然语言风格指令 + 硬性约束
-        style_instruction = MIMO_STYLES.get(emotion, MIMO_DEFAULT_STYLE) + self._HARD_RULES
+        # 音色兜底
+        if voice not in self.MIMO_PRESET_VOICES and not voice.startswith("data:"):
+            logger.warning("Unknown MiMo voice=%s, fallback to 苏打", voice)
+            voice = "苏打"
 
-        # assistant: 标签控制 — 在文本前加风格标签
-        tag_map = {
-            "自信坚定": "自信 从容",
-            "温柔亲切": "温柔 轻声",
-            "娓娓道来": "从容 自然",
-            "严肃沉稳": "沉稳 郑重",
-            "兴奋激动": "兴奋 明亮",
-            "急促紧张": "急促 紧凑",
-            "低沉神秘": "低沉 神秘",
-            "叙事平缓": "自然 松弛",
-        }
-        tags = tag_map.get(emotion, "自然")
-        tagged_text = f"({tags}){text}"
+        # 文本规范化
+        clean_text = self.normalize_tts_text(text)
 
-        logger.info(
-            "MiMo TTS start: chars=%d voice=%s emotion=%s rate=%.2f",
-            len(text), voice, emotion or "default", rate,
+        style_instruction, assistant_text = self.build_voice_prompt(
+            clean_text,
+            emotion or "叙事平缓",
+            intensity="low",
+            use_audio_tag=use_audio_tag,
         )
 
-        # 构建 audio 参数，统一语速
-        audio_params: dict = {"voice": voice, "format": "mp3"}
+        logger.info(
+            "MiMo TTS start: clean_chars=%d voice=%s emotion=%s intensity=low "
+            "use_audio_tag=%s format=%s rate_ignored=%s",
+            len(clean_text), voice, emotion or "叙事平缓",
+            use_audio_tag, audio_format, rate != 1.0,
+        )
+
         if rate != 1.0:
-            speed = int(rate * 100)
-            audio_params["speed"] = max(50, min(200, speed))
+            logger.warning("MiMoProvider: rate parameter is currently ignored for naturalness. rate=%.2f", rate)
+
+        audio_params: dict = {"voice": voice, "format": audio_format}
 
         client = OpenAI(base_url=self._base_url, api_key=self._api_key, timeout=60)
         response = client.chat.completions.create(
             model=self._model,
             messages=[
                 {"role": "user", "content": style_instruction},
-                {"role": "assistant", "content": tagged_text},
+                {"role": "assistant", "content": assistant_text},
             ],
             extra_body={"audio": audio_params},
         )
-
         # 提取 base64 音频
         audio_b64 = self._extract_audio(response)
         if not audio_b64:
@@ -322,6 +304,140 @@ class MiMoProvider(TTSProvider):
         logger.error("MiMo: could not extract audio from response. msg keys: %s",
                      list(raw.keys()) if raw else type(msg).__name__)
         return None
+
+    @staticmethod
+    def normalize_tts_text(text: str) -> str:
+        """把阅读文案处理成更适合 TTS 朗读的口播文本。"""
+        replacements = {
+            "AI": "A I",
+            "API": "A P I",
+            "TTS": "T T S",
+            "RAG": "R A G",
+            "ComfyUI": "Comfy U I",
+            "Claude": "Claude",
+            "GPT": "G P T",
+            "OpenAI": "Open A I",
+            "n8n": "n eight n",
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+
+        text = re.sub(r"[ \t]+", " ", text)
+
+        split_patterns = [
+            ("，但是", "。但是"),
+            ("，所以", "。所以"),
+            ("，因为", "。因为"),
+            ("，如果", "。如果"),
+            ("，其实", "。其实"),
+            ("，然后", "。然后"),
+            ("，结果", "。结果"),
+            ("，后来", "。后来"),
+            ("，而是", "。而是"),
+            ("，不是", "。不是"),
+            ("，只要", "。只要"),
+            ("，问题是", "。问题是"),
+        ]
+        for old, new in split_patterns:
+            text = text.replace(old, new)
+
+        text = re.sub(r"。{2,}", "。", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        return text.strip()
+
+    def build_voice_prompt(
+        self,
+        text: str,
+        emotion: str = "叙事平缓",
+        intensity: str = "low",
+        use_audio_tag: bool = False,
+    ) -> tuple[str, str]:
+        BASE_SPEECH_STYLE = (
+            "请用自然口语化的中文表达，像一个真实的人在认真发语音或录口播。"
+            "整体语气克制、松弛、真实，不要像主播，不要像新闻播报，不要像朗诵，不要像广告配音。"
+            "语速中等偏慢，句子之间有自然停顿。"
+            "情绪只保留轻微表达，不要夸张表演，不要突然拔高音量，不要故意拖长尾音。"
+            "重点词可以轻微强调，但整体听起来要像普通人自然讲话。"
+        )
+
+        style_map = {
+            "自信坚定": (
+                "语气可以稍微更笃定一点，像在分享自己验证过的方法。"
+                "有把握，但不要强势，不要喊口号，不要鸡血。"
+            ),
+            "温柔亲切": (
+                "语气稍微温和一点，耐心解释，听起来舒服。"
+                "不要撒娇，不要夹子音，不要刻意软。"
+            ),
+            "娓娓道来": (
+                "像日常聊天中讲一件事，有轻微起伏。"
+                "不要讲故事腔，不要刻意制造悬念，不要戏剧化。"
+            ),
+            "严肃沉稳": (
+                "语气稍微更认真、更稳一点。"
+                "不要新闻腔，不要压低嗓音表演，不要过度沉重。"
+            ),
+            "兴奋激动": (
+                "语气比平时稍微更有精神一点。"
+                "像发现一个有用东西分享给朋友，但不要亢奋，不要带货，不要大喊。"
+            ),
+            "急促紧张": (
+                "节奏可以稍微紧一点，像在提醒一个重要问题。"
+                "不要慌张，不要喘，不要像警报。"
+            ),
+            "低沉神秘": (
+                "语气可以稍微低一点，有一点悬念感。"
+                "不要耳语，不要气泡音，不要恐怖片感觉，不要故意拖尾。"
+            ),
+            "叙事平缓": (
+                "保持自然、平稳、松弛的口播状态。"
+                "像在认真讲一件自己的经历，不刻意煽情，不刻意制造起伏。"
+            ),
+        }
+
+        intensity_map = {
+            "low": "情绪强度控制在两分以内，尽量自然克制。",
+            "medium": "情绪强度控制在三到四分，有轻微表达起伏。",
+            "high": "情绪可以更明显，但仍然不要夸张表演。",
+        }
+
+        negative_style = (
+            "不要使用播音腔、朗诵腔、广告腔、带货腔、短视频鸡血感。"
+            "不要过度抑扬顿挫，不要夸张停顿，不要故意拖长尾音。"
+            "不要突然提高音量，不要像在演戏，不要像在配小说。"
+        )
+
+        tag_map = {
+            "自信坚定": "平静",
+            "温柔亲切": "温柔",
+            "娓娓道来": "平静",
+            "严肃沉稳": "严肃",
+            "兴奋激动": "开心",
+            "急促紧张": "紧张",
+            "低沉神秘": "深沉",
+            "叙事平缓": "平静",
+        }
+
+        style = style_map.get(emotion, style_map["叙事平缓"])
+        intensity_text = intensity_map.get(intensity, intensity_map["low"])
+
+        voice_prompt = (
+            BASE_SPEECH_STYLE
+            + style
+            + intensity_text
+            + negative_style
+            + self._HARD_RULES
+            + "请优先保证自然度，而不是情绪表现力。"
+        )
+
+        if use_audio_tag:
+            tags = tag_map.get(emotion, "平静")
+            assistant_text = f"({tags}){text}"
+        else:
+            assistant_text = text
+
+        return voice_prompt, assistant_text
 
 
 class EdgeTTSProvider(TTSProvider):
