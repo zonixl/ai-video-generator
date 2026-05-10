@@ -74,6 +74,12 @@ export const api = {
       body: JSON.stringify(params),
     }),
 
+  produceHyperframes: (params: Record<string, any>) =>
+    request<{ job_id: string }>('/produce-hyperframes', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
   // 图文推文
   generateTweet: (params: Record<string, any>) =>
     request<{ job_id: string }>('/generate-tweet', {

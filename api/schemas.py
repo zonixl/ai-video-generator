@@ -70,6 +70,20 @@ class ProduceSeedanceRequest(BaseModel):
     user_images: str | None = Field(None, description="用户自定义图片目录")
 
 
+class ProduceHyperframesRequest(BaseModel):
+    script: str = Field(..., description="文案 Markdown/TXT 文件路径")
+    job_id: str | None = Field(None, description="任务 ID")
+    output: str | None = Field(None, description="输出 mp4 路径")
+    title: str | None = Field(None, description="视频标题")
+    duration: int = Field(15, description="视频时长（秒），5-30")
+    ratio: str = Field("9:16", description="视频比例：9:16 / 16:9 / 1:1")
+    style: str = Field("tech_hud", description="视觉风格：tech_hud / data_stream / glassmorphism / cyber_grid")
+    fps: int | None = Field(None, description="视频帧率")
+    preview: bool = Field(False, description="渲染前生成预览静帧")
+    no_render: bool = Field(False, description="只生成文件，不渲染视频")
+    no_agents_sdk: bool = Field(False, description="跳过 Agents SDK，使用本地生成")
+
+
 class GenerateTweetRequest(BaseModel):
     topic: str | None = Field(None, description="话题/关键词（与 draft 二选一）")
     draft_path: str | None = Field(None, description="文章初稿文件路径（与 topic 二选一）")

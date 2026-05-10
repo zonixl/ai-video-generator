@@ -20,6 +20,7 @@ help:
 		echo "    make clear       clear knowledge base"; \
 		echo "    make nuke        clear ALL data"; \
 	echo "    make tweet       generate image-text tweet"; \
+	echo "    make hyperframes script -> HyperFrames tech video"; \
 	echo "    make serve       start REST API server"; \
 	echo "    make export      export knowledge base to Obsidian"; \
 		echo "    make test        run tests"; \
@@ -48,8 +49,9 @@ help:
 			serve) uv run python main.py serve --help ;; \
 			tweet) uv run python main.py tweet --help ;; \
 			export) uv run python main.py export-obsidian --help ;; \
+			hyperframes) uv run python main.py produce-hyperframes --help ;; \
 			status) uv run python main.py status --help ;; \
-			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic tweet export review clear nuke status serve" ;; \
+			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic hyperframes tweet export review clear nuke status serve" ;; \
 		esac \
 	fi
 
@@ -106,6 +108,9 @@ test-ssl-style:
 
 tweet:
 	uv run python main.py tweet $(ARGS)
+
+hyperframes:
+	uv run python main.py produce-hyperframes $(ARGS)
 
 export:
 	uv run python main.py export-obsidian $(ARGS)

@@ -21,6 +21,7 @@ from api.schemas import (
     IngestTextRequest,
     NukeRequest,
     PolishRequest,
+    ProduceHyperframesRequest,
     ProduceRemotionRequest,
     ProduceSeedanceRequest,
     ProduceRequest,
@@ -61,12 +62,15 @@ def _make_args(**kwargs) -> argparse.Namespace:
     return argparse.Namespace(**kwargs)
 
 
-def _run_async(job_type: str, params: dict, fn, args: argparse.Namespace) -> dict:
+def _run_async(job_type: str, params: dict, fn, args: argparse.Namespace, job_id: str | None = None) -> dict:
     """创建异步任务并在后台线程执行。"""
     # 用户传入的 job_id 作为文件夹名（续跑场景）
     resume_folder = params.get("job_id")
-    job_id = db.create_job(job_type, params)
-    # 文件夹名优先用用户指定的（续跑），否则用 DB ID（新任务）
+    if job_id:
+        db.create_job_with_id(job_id, job_type, params)
+    else:
+        job_id = db.create_job(job_type, params)
+    # 文件夹名优先用用户指定的（续跑），否则用传入/DB 生成的 ID
     args.job_id = resume_folder or job_id
     cancel_event = threading.Event()
     _active_jobs[job_id] = cancel_event
@@ -269,6 +273,22 @@ def produce_seedance(req: ProduceSeedanceRequest):
     return _run_async("produce-seedance", req.model_dump(), cmd_produce_seedance, args)
 
 
+@app.post("/api/produce-hyperframes", tags=["视频生产"])
+def produce_hyperframes(req: ProduceHyperframesRequest):
+    """HyperFrames 科技风格短视频生成。"""
+    from main import cmd_produce_hyperframes
+    from utils.media_utils import make_job_id
+
+    args = _make_args(
+        script=req.script, job_id=req.job_id, output=req.output, title=req.title,
+        duration=req.duration, ratio=req.ratio, style=req.style, fps=req.fps,
+        preview=req.preview, no_render=req.no_render,
+        no_agents_sdk=req.no_agents_sdk,
+    )
+    job_id = make_job_id(req.title or Path(req.script).stem)
+    return _run_async("produce-hyperframes", req.model_dump(), cmd_produce_hyperframes, args, job_id=job_id)
+
+
 @app.post("/api/review-video", tags=["视频审查"])
 def review_video(req: ReviewVideoRequest):
     """用多模态模型审查已生成视频。"""
@@ -427,8 +447,10 @@ def _sync_jobs_with_disk():
         return
 
     folders = {}
+
+    # 扫描 videos_dir 顶层（seedance / remotion / produce）
     for d in videos_dir.iterdir():
-        if not d.is_dir():
+        if not d.is_dir() or d.name == "hyperframes":
             continue
         # 有 input.json 或任意 mp4 文件才算有效 job 文件夹
         has_plan = (d / "input.json").exists()
@@ -453,6 +475,23 @@ def _sync_jobs_with_disk():
             "status": status,
             "created_at": d.stat().st_mtime,
         }
+
+    # 扫描 hyperframes 子目录
+    hf_dir = videos_dir / "hyperframes"
+    if hf_dir.exists():
+        for d in hf_dir.iterdir():
+            if not d.is_dir():
+                continue
+            has_plan = (d / "logs" / "request.json").exists() or (d / "workspace" / "index.html").exists()
+            has_video = any((d / "artifacts").glob("*.mp4")) if (d / "artifacts").exists() else False
+            if not has_plan and not has_video:
+                continue
+            status = "success" if has_video else "pending"
+            folders[d.name] = {
+                "type": "produce-hyperframes",
+                "status": status,
+                "created_at": d.stat().st_mtime,
+            }
 
     if folders:
         result = db.sync_jobs(folders)

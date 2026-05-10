@@ -32,6 +32,7 @@ from pipeline.ingest import IngestPipeline
 from pipeline.generate import GeneratePipeline
 from pipeline.produce import ProducePipeline
 from pipeline.produce_remotion import ProduceRemotionPipeline
+from pipeline.produce_hyperframes import ProduceHyperframesPipeline
 from pipeline.produce_seedance import ProduceSeedancePipeline
 from pipeline.tweet import TweetPipeline
 
@@ -227,6 +228,10 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
         image_provider=image_provider,
         model_manager=model_mgr,
     )
+
+
+def build_produce_hyperframes_pipeline(cfg: Settings) -> ProduceHyperframesPipeline:
+    return ProduceHyperframesPipeline(cfg, model_manager=build_model_manager(cfg))
 
 
 def build_produce_seedance_pipeline(cfg: Settings) -> ProduceSeedancePipeline:
@@ -455,6 +460,30 @@ def cmd_produce_remotion(args):
         template=args.template,
     )
     logger.info("produce-remotion completed: %s", result.video_path)
+
+
+def cmd_produce_hyperframes(args):
+    cfg = Settings(args.config)
+    setup_logging(cfg, debug=args.debug)
+    pipeline = build_produce_hyperframes_pipeline(cfg)
+    result = pipeline.run(
+        args.script,
+        job_id=args.job_id,
+        output_path=args.output,
+        title=args.title,
+        duration=args.duration,
+        ratio=args.ratio,
+        style=args.style,
+        fps=args.fps,
+        use_agents_sdk=not args.no_agents_sdk,
+        render=not args.no_render,
+        preview=args.preview,
+    )
+    logger.info("produce-hyperframes completed: workspace=%s output=%s rendered=%s", result.workspace_path, result.output_path, result.rendered)
+    print(f"job_id={result.job_id}")
+    print(f"workspace={result.workspace_path}")
+    print(f"output={result.output_path}")
+    print(f"rendered={result.rendered}")
 
 
 def cmd_review_video(args):
@@ -756,6 +785,19 @@ def main():
     p_remotion.add_argument("--refine-rounds", type=int, default=None, help="视觉自迭代最大轮数")
     p_remotion.add_argument("--review-only", action="store_true", help="只输出视觉审查报告，不应用 patch")
 
+    p_hyperframes = subparsers.add_parser("produce-hyperframes", help="generate a safe HyperFrames technology-style video")
+    p_hyperframes.add_argument("--script", "-s", required=True, help="script Markdown/TXT path")
+    p_hyperframes.add_argument("--job-id", default=None, help="HyperFrames job id")
+    p_hyperframes.add_argument("--output", "-o", default=None, help="output mp4 path")
+    p_hyperframes.add_argument("--title", default=None, help="video title")
+    p_hyperframes.add_argument("--duration", type=int, default=15, help="video duration, 5-30 seconds")
+    p_hyperframes.add_argument("--ratio", choices=("9:16", "16:9", "1:1"), default="9:16", help="video ratio")
+    p_hyperframes.add_argument("--style", choices=("tech_hud", "data_stream", "glassmorphism", "cyber_grid"), default="tech_hud", help="visual style")
+    p_hyperframes.add_argument("--fps", type=int, default=None, help="video fps")
+    p_hyperframes.add_argument("--preview", action="store_true", help="render a preview still before video render")
+    p_hyperframes.add_argument("--no-render", action="store_true", help="only generate sandbox files, skip HyperFrames CLI render")
+    p_hyperframes.add_argument("--no-agents-sdk", action="store_true", help="skip OpenAI Agents SDK and use the local fallback generator")
+
     p_seedance = subparsers.add_parser("produce-seedance", help="Seedance 图生视频")
     p_seedance.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
     p_seedance.add_argument("--job-id", default=None, help="任务 ID")
@@ -828,6 +870,7 @@ def main():
         "tweet": cmd_tweet,
         "produce": cmd_produce,
         "produce-remotion": cmd_produce_remotion,
+        "produce-hyperframes": cmd_produce_hyperframes,
         "produce-seedance": cmd_produce_seedance,
         "review-video": cmd_review_video,
         "status": cmd_status,

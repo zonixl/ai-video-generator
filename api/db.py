@@ -51,6 +51,18 @@ def create_job(job_type: str, params: dict) -> str:
     return job_id
 
 
+def create_job_with_id(job_id: str, job_type: str, params: dict) -> str:
+    """使用指定的 job_id 创建任务。"""
+    conn = _get_conn()
+    conn.execute(
+        "INSERT INTO jobs (id, type, params, status, created_at) VALUES (?,?,?,?,?)",
+        (job_id, job_type, json.dumps(params, ensure_ascii=False), JobStatus.PENDING.value, time.time()),
+    )
+    conn.commit()
+    conn.close()
+    return job_id
+
+
 def update_job(job_id: str, **kwargs) -> None:
     allowed = {"status", "result", "error", "started_at", "finished_at"}
     sets, vals = [], []

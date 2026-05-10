@@ -1,0 +1,49 @@
+Generate a self-contained HyperFrames HTML video project.
+
+Request:
+- title: {title}
+- duration_seconds: {duration}
+- ratio: {ratio}
+- fps: {fps}
+- style: {style}
+- script: {script}
+
+Output rules:
+- If you can call tools, call write_file for index.html, styles.css, and timeline.js.
+- If you cannot call tools, output only JSON with this shape:
+{{
+  "files": [
+    {{"path": "index.html", "content": "..."}},
+    {{"path": "styles.css", "content": "..."}},
+    {{"path": "timeline.js", "content": "..."}}
+  ],
+  "notes": "..."
+}}
+
+CRITICAL HyperFrames requirements (the video will FAIL to render without these):
+1. The main composition root element MUST have ALL of these attributes:
+   - data-composition-id="main"
+   - data-width="{width}"  (1080 for 9:16, 1920 for 16:9, 1080 for 1:1)
+   - data-height="{height}" (1920 for 9:16, 1080 for 16:9, 1080 for 1:1)
+   - data-duration="{duration}"
+   - data-fps="{fps}"
+   - class="clip"
+   - data-start="0"
+   - data-track-index="0"
+   The id should be "root" and the tag should be <main> or <div>.
+2. Each timed element MUST have class="clip", data-start, data-duration, data-track-index.
+3. You MUST include GSAP via CDN in the HTML head (HyperFrames compiler inlines it automatically):
+   <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+4. timeline.js MUST create a paused GSAP timeline and register it on window.__timelines:
+   window.__timelines = window.__timelines || {{}};
+   var tl = gsap.timeline({{ paused: true }});
+   // Add GSAP animations for your elements (tl.from, tl.to, etc.)
+   window.__timelines["main"] = tl;
+   Do NOT use a plain object — it MUST be a gsap.timeline({{ paused: true }}) instance.
+
+Implementation rules:
+- No remote URLs.
+- No fetch, WebSocket, eval, dynamic import, require, process, fs, document.cookie, localStorage, sessionStorage.
+- Keep each file compact.
+- Use only local CSS and vanilla JS.
+- Include these meta values in document data attributes: duration, fps, ratio.

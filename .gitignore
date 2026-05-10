@@ -10,6 +10,9 @@ build/
 .venv/
 venv/
 
+# uv temp
+.uv-temp/
+
 # IDE
 .idea/
 .vscode/
@@ -52,3 +55,4 @@ pyaudioop.py
 /Pixelle-Video-main/
 /remotion/public/
 /test_tts/
+/data/jobs.db

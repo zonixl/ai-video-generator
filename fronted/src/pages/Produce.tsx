@@ -21,7 +21,7 @@ const steps = [
   { label: '完成', icon: Check },
 ]
 
-type EngineType = 'seedance' | 'remotion' | 'tweet'
+type EngineType = 'seedance' | 'remotion' | 'hyperframes' | 'tweet'
 
 const engineSteps: Record<EngineType, { value: string; label: string; desc: string }[]> = {
   seedance: [
@@ -44,6 +44,9 @@ const engineSteps: Record<EngineType, { value: string; label: string; desc: stri
   ],
   tweet: [
     { value: 'all', label: '一键生成', desc: '润色 + 插图 + 排版，一键完成' },
+  ],
+  hyperframes: [
+    { value: 'all', label: '全部执行', desc: 'AI 生成代码 + 渲染视频，一键完成' },
   ],
 }
 
@@ -102,6 +105,11 @@ export default function Produce() {
   const [tweetFeedback, setTweetFeedback] = useState('')
   const [tweetNoImages, setTweetNoImages] = useState(false)
 
+  // HyperFrames 专属
+  const [hfDuration, setHfDuration] = useState<number | ''>('')
+  const [hfRatio, setHfRatio] = useState('')
+  const [hfStyle, setHfStyle] = useState('')
+
   const { data: scripts } = useScripts()
   const { data: job } = useJob(jobId)
   const { data: allJobs } = useJobs()
@@ -150,6 +158,30 @@ export default function Produce() {
         setJobId(res.job_id)
         setStep(2)
         toast.success('推文任务已提交')
+        return
+      }
+
+      // HyperFrames 模式
+      if (engine === 'hyperframes') {
+        if (!scriptPath) {
+          toast.error('请选择文案文件')
+          return
+        }
+        const params: Record<string, any> = {
+          script: scriptPath,
+          title: title || undefined,
+          output: output || undefined,
+          duration: hfDuration || 15,
+          ratio: hfRatio || '9:16',
+          style: hfStyle || 'tech_hud',
+          fps: fps || undefined,
+          no_agents_sdk: true,
+        }
+
+        const res = await api.produceHyperframes(params)
+        setJobId(res.job_id)
+        setStep(2)
+        toast.success('HyperFrames 任务已提交')
         return
       }
 
@@ -217,10 +249,10 @@ export default function Produce() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {engine === 'tweet' ? '图文推文' : '视频制作'}
+          {engine === 'tweet' ? '图文推文' : engine === 'hyperframes' ? 'HyperFrames 视频' : '视频制作'}
         </h1>
         <p className="mt-1 text-muted-foreground">
-          {engine === 'tweet' ? '话题/初稿 → 知识库润色 → 插图 → 排版输出' : '向导式视频生产流程'}
+          {engine === 'tweet' ? '话题/初稿 → 知识库润色 → 插图 → 排版输出' : engine === 'hyperframes' ? 'AI 生成科技风格 HTML/CSS/JS → HyperFrames 渲染视频' : '向导式视频生产流程'}
         </p>
       </div>
 
@@ -340,6 +372,7 @@ export default function Produce() {
               <CardContent className="space-y-6">
                 {/* ---- 基础信息 ---- */}
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {engine !== 'tweet' && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">视频标题</label>
                     <Input
@@ -348,10 +381,11 @@ export default function Produce() {
                       onChange={(e) => setTitle(e.target.value)}
                     />
                   </div>
+                  )}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">输出路径</label>
                     <Input
-                      placeholder="可选，默认 outputs/videos/..."
+                      placeholder="可选，默认 outputs/..."
                       value={output}
                       onChange={(e) => setOutput(e.target.value)}
                     />
@@ -362,7 +396,7 @@ export default function Produce() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">视频引擎</label>
                   <div className="flex gap-3">
-                    {(['seedance', 'remotion', 'tweet'] as EngineType[]).map((e) => (
+                    {(['seedance', 'remotion', 'hyperframes', 'tweet'] as EngineType[]).map((e) => (
                       <motion.div key={e} whileTap={{ scale: 0.97 }}>
                         <Badge
                           variant={engine === e ? 'default' : 'outline'}
@@ -372,7 +406,7 @@ export default function Produce() {
                             setPipelineStep('all')
                           }}
                         >
-                          {e === 'seedance' ? 'Seedance 图生视频' : e === 'remotion' ? 'Remotion 图示' : '图文推文'}
+                          {e === 'seedance' ? 'Seedance 图生视频' : e === 'remotion' ? 'Remotion 图示' : e === 'hyperframes' ? 'HyperFrames' : '图文推文'}
                         </Badge>
                       </motion.div>
                     ))}
@@ -380,6 +414,7 @@ export default function Produce() {
                 </div>
 
                 {/* ---- 尺寸 & 帧率 ---- */}
+                {(engine === 'seedance' || engine === 'remotion') && (
                 <div className="space-y-3">
                   <label className="text-sm font-medium">尺寸 & 帧率</label>
                   <div className="flex gap-2 flex-wrap">
@@ -424,8 +459,10 @@ export default function Produce() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* ---- 音频模式 ---- */}
+                {(engine === 'seedance' || engine === 'remotion') && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">音频模式</label>
                   <div className="flex gap-3">
@@ -446,6 +483,7 @@ export default function Produce() {
                     ))}
                   </div>
                 </div>
+                )}
 
                 {/* ---- TTS 合成模式（仅 Remotion + TTS 时显示） ---- */}
                 {engine === 'remotion' && audioMode === 'tts' && (
@@ -657,7 +695,67 @@ export default function Produce() {
                   </div>
                 )}
 
-                {/* ---- 执行步骤 ---- */}
+                {/* ---- HyperFrames 专属 ---- */}
+                {engine === 'hyperframes' && (
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium">HyperFrames 选项</label>
+
+                    {/* 时长 */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">视频时长（秒）</label>
+                      <Input
+                        type="number"
+                        placeholder="5-30，默认 15"
+                        value={hfDuration}
+                        onChange={(e) => setHfDuration(e.target.value ? parseInt(e.target.value) : '')}
+                        className="w-40"
+                      />
+                    </div>
+
+                    {/* 画幅 */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">画幅比例</label>
+                      <div className="flex gap-2">
+                        {['9:16', '16:9', '1:1'].map((r) => (
+                          <Badge
+                            key={r}
+                            variant={hfRatio === r ? 'default' : 'outline'}
+                            className="cursor-pointer px-3 py-1 text-xs"
+                            onClick={() => setHfRatio(r)}
+                          >
+                            {r}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 视觉风格 */}
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">视觉风格</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {[
+                          { v: 'tech_hud', label: '科技 HUD' },
+                          { v: 'data_stream', label: '数据流' },
+                          { v: 'glassmorphism', label: '毛玻璃' },
+                          { v: 'cyber_grid', label: '赛博网格' },
+                        ].map((s) => (
+                          <Badge
+                            key={s.v}
+                            variant={hfStyle === s.v ? 'default' : 'outline'}
+                            className="cursor-pointer px-3 py-1 text-xs"
+                            onClick={() => setHfStyle(s.v)}
+                          >
+                            {s.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ---- 执行步骤 + 续跑 + 强制重做（仅视频引擎） ---- */}
+                {(engine === 'seedance' || engine === 'remotion') && (
+                <>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">执行步骤</label>
                   <p className="text-xs text-muted-foreground">
@@ -747,6 +845,8 @@ export default function Produce() {
                     跳过已有结果，重新生成
                   </span>
                 </div>
+                </>
+                )}
 
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(0)}>
@@ -754,7 +854,7 @@ export default function Produce() {
                   </Button>
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                     <Button onClick={handleStart}>
-                      {pipelineStep === 'all' ? '开始制作' : `从 "${engineSteps[engine].find(s => s.value === pipelineStep)?.label}" 开始`}
+                      {(engine === 'hyperframes' || pipelineStep === 'all') ? '开始制作' : `从 "${engineSteps[engine].find(s => s.value === pipelineStep)?.label}" 开始`}
                     </Button>
                   </motion.div>
                 </div>
@@ -862,7 +962,15 @@ export default function Produce() {
                       </Button>
                     </motion.div>
                   )}
-                  {engine !== 'tweet' && job?.result?.video_path && (
+                  {engine === 'hyperframes' && job?.result && (
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <Button onClick={() => window.open(`/api/files/${job.result.output_path || job.result.video_path}`, '_blank')}>
+                        <Download className="mr-2 h-4 w-4" />
+                        下载视频
+                      </Button>
+                    </motion.div>
+                  )}
+                  {engine !== 'tweet' && engine !== 'hyperframes' && job?.result?.video_path && (
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                       <Button onClick={() => window.open(`/api/files/${job.result.video_path}`, '_blank')}>
                         <Download className="mr-2 h-4 w-4" />
