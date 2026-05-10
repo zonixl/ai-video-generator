@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, Check, FileText, Settings2, ImageIcon, Film, Download, Eye, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -100,6 +100,7 @@ export default function Produce() {
   const [ttsMode, setTtsMode] = useState('per_scene')
 
   // Tweet 专属
+  const [tweetMode, setTweetMode] = useState<'topic' | 'draft'>('topic')
   const [tweetTopic, setTweetTopic] = useState('')
   const [tweetDraft, setTweetDraft] = useState('')
   const [tweetFeedback, setTweetFeedback] = useState('')
@@ -109,6 +110,9 @@ export default function Produce() {
   const [hfDuration, setHfDuration] = useState<number | ''>('')
   const [hfRatio, setHfRatio] = useState('')
   const [hfStyle, setHfStyle] = useState('')
+
+  // 推文结果预览
+  const [tweetArticle, setTweetArticle] = useState('')
 
   const { data: scripts } = useScripts()
   const { data: job } = useJob(jobId)
@@ -141,15 +145,20 @@ export default function Produce() {
 
   const handleStart = async () => {
     try {
+      setTweetArticle('')
       // Tweet 模式：独立逻辑
       if (engine === 'tweet') {
-        if (!tweetTopic && !tweetDraft) {
-          toast.error('请输入话题或提供初稿路径')
+        if (tweetMode === 'topic' && !tweetTopic) {
+          toast.error('请输入话题/关键词')
+          return
+        }
+        if (tweetMode === 'draft' && !tweetDraft) {
+          toast.error('请提供初稿文件路径')
           return
         }
         const params: Record<string, any> = {}
-        if (tweetTopic) params.topic = tweetTopic
-        if (tweetDraft && tweetDraft !== 'draft') params.draft_path = tweetDraft
+        if (tweetMode === 'topic') params.topic = tweetTopic
+        if (tweetMode === 'draft') params.draft_path = tweetDraft
         if (tweetFeedback) params.feedback = tweetFeedback
         if (output) params.output = output
         params.no_images = tweetNoImages
@@ -244,6 +253,17 @@ export default function Produce() {
   if ((isSuccess || isFailed || isCancelled) && step === 2) {
     if (isSuccess) setStep(3)
   }
+
+  // 推文完成后加载文章内容
+  useEffect(() => {
+    if (step === 3 && engine === 'tweet' && job?.result?.output_path) {
+      setTweetArticle('')
+      fetch(`/api/files/${encodeURIComponent(job.result.output_path)}`)
+        .then((r) => r.ok ? r.text() : Promise.reject(r.statusText))
+        .then(setTweetArticle)
+        .catch(() => {})
+    }
+  }, [step, engine, job?.result?.output_path])
 
   return (
     <div className="space-y-8">
@@ -632,16 +652,16 @@ export default function Produce() {
                       <label className="text-xs text-muted-foreground">输入方式</label>
                       <div className="flex gap-3">
                         <Badge
-                          variant={!tweetDraft ? 'default' : 'outline'}
+                          variant={tweetMode === 'topic' ? 'default' : 'outline'}
                           className="cursor-pointer px-4 py-2 text-sm"
-                          onClick={() => { setTweetDraft(''); setTweetTopic('') }}
+                          onClick={() => { setTweetMode('topic'); setTweetDraft(''); setTweetTopic('') }}
                         >
                           话题生成
                         </Badge>
                         <Badge
-                          variant={tweetDraft ? 'default' : 'outline'}
+                          variant={tweetMode === 'draft' ? 'default' : 'outline'}
                           className="cursor-pointer px-4 py-2 text-sm"
-                          onClick={() => { setTweetTopic(''); setTweetDraft('draft') }}
+                          onClick={() => { setTweetMode('draft'); setTweetTopic(''); setTweetDraft(scriptPath) }}
                         >
                           初稿润色
                         </Badge>
@@ -649,7 +669,7 @@ export default function Produce() {
                     </div>
 
                     {/* 话题输入 */}
-                    {!tweetDraft && (
+                    {tweetMode === 'topic' && (
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">话题/关键词</label>
                         <Input
@@ -661,13 +681,13 @@ export default function Produce() {
                     )}
 
                     {/* 初稿路径 */}
-                    {tweetDraft && (
+                    {tweetMode === 'draft' && (
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">初稿文件路径</label>
                         <Input
                           placeholder="如：outputs/scripts/xxx.md"
-                          value={tweetDraft === 'draft' ? '' : tweetDraft}
-                          onChange={(e) => setTweetDraft(e.target.value || 'draft')}
+                          value={tweetDraft}
+                          onChange={(e) => setTweetDraft(e.target.value)}
                         />
                       </div>
                     )}
@@ -940,37 +960,58 @@ export default function Produce() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-600">
                   <Check className="h-5 w-5" />
-                  制作完成
+                  {engine === 'tweet' ? '推文生成完成' : '制作完成'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {job?.result?.video_path && (
+                {/* Tweet 输出路径 */}
+                {engine === 'tweet' && job?.result?.output_path && (
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm">{job.result.output_path}</span>
+                  </div>
+                )}
+                {/* 推文内容预览 */}
+                {engine === 'tweet' && tweetArticle && (
+                  <div className="rounded-lg border bg-muted/30 p-4 max-h-[50vh] overflow-auto">
+                    <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{tweetArticle}</pre>
+                  </div>
+                )}
+                {/* 视频输出路径 */}
+                {(engine === 'seedance' || engine === 'remotion') && job?.result?.video_path && (
                   <div className="flex items-center gap-3">
                     <ImageIcon className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm">{job.result.video_path}</span>
+                  </div>
+                )}
+                {/* HyperFrames 输出路径 */}
+                {engine === 'hyperframes' && job?.result?.output_path && (
+                  <div className="flex items-center gap-3">
+                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm">{job.result.output_path}</span>
                   </div>
                 )}
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => { setStep(0); setJobId(''); setResumeJobId('') }}>
                     再次制作
                   </Button>
-                  {engine === 'tweet' && job?.result && (
+                  {engine === 'tweet' && job?.result?.output_path && (
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                      <Button onClick={() => window.open(`/api/files/${job.result.output_path || job.result.video_path}`, '_blank')}>
+                      <Button onClick={() => window.open(`/api/files/${job.result.output_path}`, '_blank')}>
                         <Download className="mr-2 h-4 w-4" />
                         下载推文
                       </Button>
                     </motion.div>
                   )}
-                  {engine === 'hyperframes' && job?.result && (
+                  {engine === 'hyperframes' && job?.result?.output_path && (
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                      <Button onClick={() => window.open(`/api/files/${job.result.output_path || job.result.video_path}`, '_blank')}>
+                      <Button onClick={() => window.open(`/api/files/${job.result.output_path}`, '_blank')}>
                         <Download className="mr-2 h-4 w-4" />
                         下载视频
                       </Button>
                     </motion.div>
                   )}
-                  {engine !== 'tweet' && engine !== 'hyperframes' && job?.result?.video_path && (
+                  {(engine === 'seedance' || engine === 'remotion') && job?.result?.video_path && (
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                       <Button onClick={() => window.open(`/api/files/${job.result.video_path}`, '_blank')}>
                         <Download className="mr-2 h-4 w-4" />

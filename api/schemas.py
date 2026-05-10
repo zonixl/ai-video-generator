@@ -120,6 +120,11 @@ class SaveScriptRequest(BaseModel):
     content: str = Field(..., description="文案内容")
 
 
+class SaveTweetRequest(BaseModel):
+    path: str = Field(..., description="推文文件路径")
+    content: str = Field(..., description="推文内容")
+
+
 # ---- 响应 ----
 
 class JobResponse(BaseModel):

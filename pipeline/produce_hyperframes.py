@@ -26,7 +26,7 @@ class ProduceHyperframesPipeline:
         model_manager=None,
     ):
         self._cfg = config
-        self._root_dir = config.output_videos_dir / "hyperframes"
+        self._root_dir = config.output_videos_dir
         self._sandbox = HyperframesSandbox(self._root_dir)
         self._renderer = renderer or HyperframesRenderer()
         self._agent = agent or HyperframesVideoAgent(model_manager=model_manager)

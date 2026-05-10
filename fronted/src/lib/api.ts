@@ -55,6 +55,15 @@ export const api = {
   listVideos: () =>
     request<{ job_id: string; path: string; videos: string[] }[]>('/videos'),
 
+  listTweets: () =>
+    request<{ name: string; path: string; article: string; article_raw: string; images: string[]; created_at: number }[]>('/tweets'),
+
+  saveTweet: (path: string, content: string) =>
+    request<{ status: string; name: string; path: string; size: number }>('/tweets', {
+      method: 'PUT',
+      body: JSON.stringify({ path, content }),
+    }),
+
   // 视频生产
   produceSeedance: (params: Record<string, any>) =>
     request<{ job_id: string }>('/produce-seedance', {

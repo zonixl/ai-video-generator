@@ -27,6 +27,7 @@ from api.schemas import (
     ProduceRequest,
     ReviewVideoRequest,
     SaveScriptRequest,
+    SaveTweetRequest,
 )
 
 logger = logging.getLogger("api")
@@ -78,12 +79,22 @@ def _run_async(job_type: str, params: dict, fn, args: argparse.Namespace, job_id
     def _worker():
         db.update_job(job_id, status="running", started_at=time.time())
         try:
-            fn(args)
+            result = fn(args)
             # 检查是否在执行期间被取消
             if cancel_event.is_set():
                 db.update_job(job_id, status="cancelled", finished_at=time.time())
             else:
-                db.update_job(job_id, status="success", finished_at=time.time())
+                # 保存 pipeline 返回值到 result 字段
+                if result is not None:
+                    if hasattr(result, "__dict__"):
+                        result_data = {k: v for k, v in result.__dict__.items() if not k.startswith("_")}
+                    elif isinstance(result, dict):
+                        result_data = result
+                    else:
+                        result_data = {"output": str(result)}
+                    db.update_job(job_id, status="success", result=result_data, finished_at=time.time())
+                else:
+                    db.update_job(job_id, status="success", finished_at=time.time())
         except Exception as exc:
             logger.exception("Job %s failed", job_id)
             db.update_job(job_id, status="failed", error=str(exc), finished_at=time.time())
@@ -371,7 +382,7 @@ def list_scripts():
             stat = f.stat()
             results.append({
                 "name": f.name,
-                "path": str(f),
+                "path": str(f).replace("\\", "/"),
                 "size": stat.st_size,
                 "modified": stat.st_mtime,
             })
@@ -391,7 +402,7 @@ def save_script(req: SaveScriptRequest):
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(req.content, encoding="utf-8")
     stat = file_path.stat()
-    return {"status": "ok", "name": file_path.name, "path": str(file_path), "size": stat.st_size}
+    return {"status": "ok", "name": file_path.name, "path": str(file_path).replace("\\", "/"), "size": stat.st_size}
 
 
 @app.get("/api/videos", tags=["文件"])
@@ -402,18 +413,73 @@ def list_videos():
         return []
     results = []
     for d in sorted(videos_dir.iterdir(), reverse=True):
-        if d.is_dir():
-            mp4s = [str(f) for f in d.glob("*.mp4")]
-            results.append({"job_id": d.name, "path": str(d), "videos": mp4s})
+        if not d.is_dir():
+            continue
+        # 顶层 mp4（remotion / seedance / produce）
+        mp4s = [str(f).replace("\\", "/") for f in d.glob("*.mp4")]
+        # artifacts/ 子目录 mp4（hyperframes）
+        artifacts_dir = d / "artifacts"
+        if artifacts_dir.exists():
+            mp4s += [str(f).replace("\\", "/") for f in artifacts_dir.glob("*.mp4")]
+        if mp4s:
+            results.append({"job_id": d.name, "path": str(d).replace("\\", "/"), "videos": mp4s})
     return results
+
+
+@app.get("/api/tweets", tags=["文件"])
+def list_tweets():
+    """列出已生成的图文推文。"""
+    from config import Settings
+
+    cfg = Settings()
+    tweets_dir = cfg.output_tweets_dir
+    if not tweets_dir.exists():
+        return []
+    results = []
+    for d in sorted(tweets_dir.iterdir(), reverse=True):
+        if not d.is_dir():
+            continue
+        article_path = d / "article.md"
+        raw_path = d / "article_raw.md"
+        images = [str(f).replace("\\", "/") for f in sorted((d / "images").glob("*.*"))] if (d / "images").exists() else []
+        results.append({
+            "name": d.name,
+            "path": str(d).replace("\\", "/"),
+            "article": str(article_path).replace("\\", "/") if article_path.exists() else "",
+            "article_raw": str(raw_path).replace("\\", "/") if raw_path.exists() else "",
+            "images": images,
+            "created_at": d.stat().st_mtime,
+        })
+    return results
+
+
+@app.put("/api/tweets", tags=["文件"])
+def save_tweet(req: SaveTweetRequest):
+    """保存推文内容到文件。"""
+    from config import Settings
+
+    cfg = Settings()
+    file_path = Path(req.path).resolve()
+    tweets_dir = cfg.output_tweets_dir.resolve()
+    # 安全检查：只允许写入 tweets 目录下的 .md 文件
+    try:
+        file_path.relative_to(tweets_dir)
+    except ValueError:
+        return JSONResponse(status_code=400, content={"error": "只能保存到推文目录下"})
+    if file_path.suffix.lower() not in {".md", ".txt"}:
+        return JSONResponse(status_code=400, content={"error": "只支持 .md / .txt 文件"})
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(req.content, encoding="utf-8")
+    stat = file_path.stat()
+    return {"status": "ok", "name": file_path.name, "path": str(file_path).replace("\\", "/"), "size": stat.st_size}
 
 
 @app.get("/api/files/{path:path}", tags=["文件"])
 def get_file(path: str):
     """静态文件服务（outputs/ 下的文件）。"""
+    # URL 里的 %5C (反斜杠) → 正斜杠，兼容 Windows 路径
+    path = path.replace("\\", "/")
     file_path = Path(path)
-    if not file_path.is_absolute():
-        file_path = Path(path)
     if not file_path.exists():
         # 也尝试从 outputs/ 下查找
         alt = Path("outputs") / path
@@ -448,13 +514,21 @@ def _sync_jobs_with_disk():
 
     folders = {}
 
-    # 扫描 videos_dir 顶层（seedance / remotion / produce）
     for d in videos_dir.iterdir():
-        if not d.is_dir() or d.name == "hyperframes":
+        if not d.is_dir():
             continue
-        # 有 input.json 或任意 mp4 文件才算有效 job 文件夹
+
+        # 检测各类 job 的 plan 和 video 文件
         has_plan = (d / "input.json").exists()
         has_video = any(d.glob("*.mp4"))
+
+        # hyperframes: plan 在 logs/request.json 或 workspace/index.html
+        artifacts_dir = d / "artifacts"
+        if not has_plan:
+            has_plan = (d / "logs" / "request.json").exists() or (d / "workspace" / "index.html").exists()
+        if not has_video and artifacts_dir.exists():
+            has_video = any(artifacts_dir.glob("*.mp4"))
+
         if not has_plan and not has_video:
             continue
 
@@ -464,6 +538,8 @@ def _sync_jobs_with_disk():
             job_type = "produce-remotion"
         elif name.startswith("produce-seedance"):
             job_type = "produce-seedance"
+        elif (d / "workspace" / "index.html").exists() or (d / "logs" / "request.json").exists():
+            job_type = "produce-hyperframes"
         elif name.startswith("produce"):
             job_type = "produce"
         else:
@@ -475,23 +551,6 @@ def _sync_jobs_with_disk():
             "status": status,
             "created_at": d.stat().st_mtime,
         }
-
-    # 扫描 hyperframes 子目录
-    hf_dir = videos_dir / "hyperframes"
-    if hf_dir.exists():
-        for d in hf_dir.iterdir():
-            if not d.is_dir():
-                continue
-            has_plan = (d / "logs" / "request.json").exists() or (d / "workspace" / "index.html").exists()
-            has_video = any((d / "artifacts").glob("*.mp4")) if (d / "artifacts").exists() else False
-            if not has_plan and not has_video:
-                continue
-            status = "success" if has_video else "pending"
-            folders[d.name] = {
-                "type": "produce-hyperframes",
-                "status": status,
-                "created_at": d.stat().st_mtime,
-            }
 
     if folders:
         result = db.sync_jobs(folders)

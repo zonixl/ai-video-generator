@@ -13,33 +13,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import Settings
 from utils.logger import setup_logging
-from core.stt import SpeechToText
-from core.llm import ModelManager
-from core.embedder import Embedder
-from core.vectordb import VectorStore
-from core.retriever import Retriever
-from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
-from core.image_provider import ArkSeedreamImageProvider, GPTImageProvider, PlaceholderImageProvider
-from core.tts import EdgeTTSProvider, MiMoProvider, iFLYTEKProvider
-from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
-from core.remotion_refiner import RemotionRefiner
-from core.remotion_renderer import RemotionRenderer
-from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
-from core.video_gen_provider import SeedanceVideoProvider
-from core.video_reviewer import VideoReviewer
-from core.vision_provider import OpenAICompatibleVisionProvider
-from pipeline.ingest import IngestPipeline
-from pipeline.generate import GeneratePipeline
-from pipeline.produce import ProducePipeline
-from pipeline.produce_remotion import ProduceRemotionPipeline
-from pipeline.produce_hyperframes import ProduceHyperframesPipeline
-from pipeline.produce_seedance import ProduceSeedancePipeline
-from pipeline.tweet import TweetPipeline
 
 logger = logging.getLogger("main")
 
 
-def build_model_manager(cfg: Settings) -> ModelManager:
+def build_model_manager(cfg: Settings):
+    from core.llm import ModelManager
     logger.debug("Building ModelManager...")
     return ModelManager(
         providers_cfg=cfg.models_providers,
@@ -47,7 +26,11 @@ def build_model_manager(cfg: Settings) -> ModelManager:
     )
 
 
-def build_ingest_pipeline(cfg: Settings) -> IngestPipeline:
+def build_ingest_pipeline(cfg: Settings):
+    from core.stt import SpeechToText
+    from core.embedder import Embedder
+    from core.vectordb import VectorStore
+    from pipeline.ingest import IngestPipeline
     model_mgr = build_model_manager(cfg)
     stt = SpeechToText(
         model_size=cfg.stt_model_size,
@@ -68,7 +51,11 @@ def build_ingest_pipeline(cfg: Settings) -> IngestPipeline:
     return IngestPipeline(stt, embedder, vs, model_mgr, cfg)
 
 
-def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
+def build_generate_pipeline(cfg: Settings):
+    from core.embedder import Embedder
+    from core.vectordb import VectorStore
+    from core.retriever import Retriever
+    from pipeline.generate import GeneratePipeline
     model_mgr = build_model_manager(cfg)
     embedder = Embedder(
         model_name=cfg.embedding_model_name,
@@ -90,7 +77,11 @@ def build_generate_pipeline(cfg: Settings) -> GeneratePipeline:
     return GeneratePipeline(retriever, model_mgr, cfg)
 
 
-def build_tweet_pipeline(cfg: Settings) -> TweetPipeline:
+def build_tweet_pipeline(cfg: Settings):
+    from core.embedder import Embedder
+    from core.vectordb import VectorStore
+    from core.retriever import Retriever
+    from pipeline.tweet import TweetPipeline
     model_mgr = build_model_manager(cfg)
     embedder = Embedder(
         model_name=cfg.embedding_model_name,
@@ -115,6 +106,7 @@ def build_tweet_pipeline(cfg: Settings) -> TweetPipeline:
 
 def build_tts_provider(cfg: Settings):
     """根据配置创建 TTS Provider。"""
+    from core.tts import EdgeTTSProvider, MiMoProvider, iFLYTEKProvider
     if cfg.tts_engine == "mimo":
         return MiMoProvider(
             base_url=cfg.tts_mimo_base_url,
@@ -133,6 +125,7 @@ def build_tts_provider(cfg: Settings):
 
 def build_image_provider(cfg: Settings):
     """根据配置创建图片生成 Provider。"""
+    from core.image_provider import ArkSeedreamImageProvider, GPTImageProvider, PlaceholderImageProvider
     if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
         return ArkSeedreamImageProvider(
             base_url=cfg.image_gen_base_url,
@@ -152,7 +145,10 @@ def build_image_provider(cfg: Settings):
     return PlaceholderImageProvider()
 
 
-def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
+def build_produce_pipeline(cfg: Settings):
+    from core.animation_planner import AIAnimationPlanner, RuleBasedAnimationPlanner
+    from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
+    from pipeline.produce import ProducePipeline
     rule_splitter = RuleBasedSceneSplitter(
         min_scene_duration=cfg.video_min_scene_duration,
         max_scene_duration=cfg.video_max_scene_duration,
@@ -187,7 +183,12 @@ def build_produce_pipeline(cfg: Settings) -> ProducePipeline:
     )
 
 
-def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False, refine_enabled: bool = False, kinetic: bool = False) -> ProduceRemotionPipeline:
+def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False, refine_enabled: bool = False, kinetic: bool = False):
+    from core.remotion_planner import AIRemotionPlanner, RuleBasedRemotionPlanner
+    from core.remotion_refiner import RemotionRefiner
+    from core.remotion_renderer import RemotionRenderer
+    from core.vision_provider import OpenAICompatibleVisionProvider
+    from pipeline.produce_remotion import ProduceRemotionPipeline
     rule_planner = RuleBasedRemotionPlanner()
     if cfg.remotion_planner == "ai" and not render_only:
         planner = AIRemotionPlanner(
@@ -230,11 +231,15 @@ def build_produce_remotion_pipeline(cfg: Settings, *, render_only: bool = False,
     )
 
 
-def build_produce_hyperframes_pipeline(cfg: Settings) -> ProduceHyperframesPipeline:
+def build_produce_hyperframes_pipeline(cfg: Settings):
+    from pipeline.produce_hyperframes import ProduceHyperframesPipeline
     return ProduceHyperframesPipeline(cfg, model_manager=build_model_manager(cfg))
 
 
-def build_produce_seedance_pipeline(cfg: Settings) -> ProduceSeedancePipeline:
+def build_produce_seedance_pipeline(cfg: Settings):
+    from core.scene_splitter import AISceneSplitter, RuleBasedSceneSplitter
+    from core.video_gen_provider import SeedanceVideoProvider
+    from pipeline.produce_seedance import ProduceSeedancePipeline
     # splitter
     rule_splitter = RuleBasedSceneSplitter(
         min_scene_duration=cfg.video_min_scene_duration,
@@ -402,6 +407,7 @@ def cmd_tweet(args):
         no_images=args.no_images,
     )
     logger.info("tweet completed: %s", out_path)
+    return {"output_path": out_path}
 
 
 def cmd_produce(args):
@@ -424,6 +430,7 @@ def cmd_produce(args):
         force=args.force,
     )
     logger.info("produce completed: %s", result.video_path)
+    return result
 
 
 def cmd_produce_remotion(args):
@@ -460,6 +467,7 @@ def cmd_produce_remotion(args):
         template=args.template,
     )
     logger.info("produce-remotion completed: %s", result.video_path)
+    return result
 
 
 def cmd_produce_hyperframes(args):
@@ -484,9 +492,12 @@ def cmd_produce_hyperframes(args):
     print(f"workspace={result.workspace_path}")
     print(f"output={result.output_path}")
     print(f"rendered={result.rendered}")
+    return {"output_path": result.output_path, "workspace_path": result.workspace_path, "rendered": result.rendered}
 
 
 def cmd_review_video(args):
+    from core.vision_provider import OpenAICompatibleVisionProvider
+    from core.video_reviewer import VideoReviewer
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     instance_name = args.reviewer_instance or cfg.remotion_reviewer_instance
@@ -536,9 +547,11 @@ def cmd_produce_seedance(args):
         user_images_dir=args.user_images,
     )
     logger.info("produce-seedance completed: %s", result["video_path"])
+    return result
 
 
 def cmd_status(args):
+    from core.vectordb import VectorStore
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     vs = VectorStore(
@@ -553,6 +566,7 @@ def cmd_status(args):
 
 
 def cmd_nuke(args):
+    from core.vectordb import VectorStore
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     if not args.confirm:
@@ -621,6 +635,7 @@ def cmd_serve(args):
 
 
 def cmd_clear(args):
+    from core.vectordb import VectorStore
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     if not args.confirm:
@@ -642,6 +657,7 @@ def cmd_export_obsidian(args):
     """导出知识库全部内容为 Obsidian 笔记。"""
     from datetime import datetime
     from collections import defaultdict
+    from core.vectordb import VectorStore
 
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)

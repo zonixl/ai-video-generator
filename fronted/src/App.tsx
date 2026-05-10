@@ -7,6 +7,7 @@ import Scripts from '@/pages/Scripts'
 import Produce from '@/pages/Produce'
 import Jobs from '@/pages/Jobs'
 import Videos from '@/pages/Videos'
+import Tweets from '@/pages/Tweets'
 import Settings from '@/pages/Settings'
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/produce" element={<Produce />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/videos" element={<Videos />} />
+            <Route path="/tweets" element={<Tweets />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>

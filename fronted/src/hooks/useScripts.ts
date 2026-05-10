@@ -15,6 +15,13 @@ export function useVideos() {
   })
 }
 
+export function useTweets() {
+  return useQuery({
+    queryKey: ['tweets'],
+    queryFn: () => api.listTweets(),
+  })
+}
+
 export function useStatus() {
   return useQuery({
     queryKey: ['status'],

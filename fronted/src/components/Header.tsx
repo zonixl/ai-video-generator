@@ -6,6 +6,7 @@ import {
   Video,
   ListTodo,
   Settings,
+  PenLine,
 } from 'lucide-react'
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
   { to: '/produce', label: '制作', icon: Video },
   { to: '/jobs', label: '任务', icon: ListTodo },
   { to: '/videos', label: '视频库', icon: Video },
+  { to: '/tweets', label: '推文库', icon: PenLine },
   { to: '/settings', label: '设置', icon: Settings },
 ]
 
