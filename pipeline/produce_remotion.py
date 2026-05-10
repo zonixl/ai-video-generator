@@ -130,7 +130,7 @@ class ProduceRemotionPipeline:
                 try:
                     config = self._kinetic_planner.plan(
                         text, scene.duration,
-                        emotion=scene.tts_emotion or "", fps=spec.fps,
+                        emotion="", fps=spec.fps,
                     )
                     scene.kinetic_config = config
                     scene.template = "kinetic_text"
@@ -280,7 +280,7 @@ class ProduceRemotionPipeline:
             text = scene.subtitle.strip()
             if not text:
                 continue
-            emotion = getattr(scene, 'tts_emotion', '') or ''
+            emotion = ''  # 暂时固定用 synthesize 默认风格（娓娓道来）
             path = scene_dir / f"scene_{scene.scene_index:03d}.mp3"
             tasks.append((scene.scene_index, text, emotion, path))
 
@@ -360,15 +360,9 @@ class ProduceRemotionPipeline:
             raise RuntimeError("No scene text for whole-article TTS")
         full_text = "\n".join(text for _, text in scene_texts)
 
-        # 2. AI 选择统一风格
-        try:
-            from core.tts_style_planner import TTSStylePlanner
-            style_planner = TTSStylePlanner(self._model_manager)
-            unified_emotion = style_planner.plan(full_text)
-            logger.info("      [whole_article] AI unified style: %s", unified_emotion)
-        except Exception as exc:
-            logger.warning("      [whole_article] Style planning failed (%s), using default", exc)
-            unified_emotion = "叙事平缓"
+        # 2. 统一风格（暂时固定用娓娓道来）
+        unified_emotion = ""
+        logger.info("      [whole_article] unified style: 娓娓道来 (fixed)")
 
         # 3. 逐 scene 合成，全部用同一个 emotion
         tasks: list[tuple[int, str, Path]] = []

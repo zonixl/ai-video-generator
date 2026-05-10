@@ -236,7 +236,7 @@ class MiMoProvider(TTSProvider):
 
         style_instruction, assistant_text = self.build_voice_prompt(
             clean_text,
-            emotion or "叙事平缓",
+            emotion or "娓娓道来",
             intensity="low",
             use_audio_tag=use_audio_tag,
         )
@@ -244,7 +244,7 @@ class MiMoProvider(TTSProvider):
         logger.info(
             "MiMo TTS start: clean_chars=%d voice=%s emotion=%s intensity=low "
             "use_audio_tag=%s format=%s rate_ignored=%s",
-            len(clean_text), voice, emotion or "叙事平缓",
+            len(clean_text), voice, emotion or "娓娓道来",
             use_audio_tag, audio_format, rate != 1.0,
         )
 
