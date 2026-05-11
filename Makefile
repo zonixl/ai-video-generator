@@ -1,10 +1,10 @@
-# AI Content Pipeline
+# AI Video Generator
 # Usage / 用法: make <target> ARGS='...'
 
 help:
 	@if [ -z "$(CMD)" ]; then \
 		echo "============================================"; \
-		echo " AI Content Pipeline"; \
+		echo " AI Video Generator"; \
 		echo "============================================"; \
 		echo ""; \
 		echo "  Commands / 命令:"; \

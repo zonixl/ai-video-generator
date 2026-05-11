@@ -1,8 +1,5 @@
-"""CLI 入口：AI内容生产系统。"""
+﻿"""CLI 鍏ュ彛锛欰I鍐呭鐢熶骇绯荤粺銆?""
 
-import os
-# 禁止 HuggingFace Hub 网络请求，只使用本地缓存
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 import argparse
 import logging
@@ -109,7 +106,7 @@ def build_tweet_pipeline(cfg: Settings):
 
 
 def build_tts_provider(cfg: Settings):
-    """根据配置创建 TTS Provider。"""
+    """鏍规嵁閰嶇疆鍒涘缓 TTS Provider銆?""
     from core.tts import EdgeTTSProvider, MiMoProvider, iFLYTEKProvider
     if cfg.tts_engine == "mimo":
         return MiMoProvider(
@@ -128,7 +125,7 @@ def build_tts_provider(cfg: Settings):
 
 
 def build_image_provider(cfg: Settings):
-    """根据配置创建图片生成 Provider。"""
+    """鏍规嵁閰嶇疆鍒涘缓鍥剧墖鐢熸垚 Provider銆?""
     from core.image_provider import ArkSeedreamImageProvider, GPTImageProvider, PlaceholderImageProvider
     if cfg.image_gen_engine in {"ark-seedream", "seedream"}:
         return ArkSeedreamImageProvider(
@@ -293,7 +290,7 @@ def build_produce_seedance_pipeline(cfg: Settings):
 
 
 def _process_one(args_tuple: tuple) -> dict:
-    """处理单个文件（供线程池调用）。复用同一个 pipeline 实例。"""
+    """澶勭悊鍗曚釜鏂囦欢锛堜緵绾跨▼姹犺皟鐢級銆傚鐢ㄥ悓涓€涓?pipeline 瀹炰緥銆?""
     audio_file, pipeline, force = args_tuple
     return pipeline.run(str(audio_file), force=force)
 
@@ -318,8 +315,7 @@ def cmd_ingest(args):
         workers = max(1, cfg.ingest_parallel_workers)
         logger.info("Batch ingest: %d files, %d workers", len(audio_files), workers)
 
-        pipeline = build_ingest_pipeline(cfg)  # 只建一次，多线程复用
-
+        pipeline = build_ingest_pipeline(cfg)  # 鍙缓涓€娆★紝澶氱嚎绋嬪鐢?
         ok, skip, fail = 0, 0, 0
         futures = {}
 
@@ -347,8 +343,7 @@ def cmd_ingest(args):
                     ok, skip, fail, len(audio_files))
     else:
         pipeline = build_ingest_pipeline(cfg)
-        # 单文件模式
-        result = pipeline.run(args.input, force=args.force)
+        # 鍗曟枃浠舵ā寮?        result = pipeline.run(args.input, force=args.force)
         if result.get("skipped"):
             logger.info("ingest skipped: duplicate file (hash=%s), use --force to re-ingest", result["hash"])
             return
@@ -369,7 +364,7 @@ def cmd_ingest_text(args):
         text = args.text
         source_name = args.name or "direct_input"
     else:
-        logger.error("需要 --text 或 --input 参数")
+        logger.error("闇€瑕?--text 鎴?--input 鍙傛暟")
         return
 
     result = pipeline.ingest_text(text, source_name=source_name, force=args.force)
@@ -384,7 +379,7 @@ def cmd_generate(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     pipeline = build_generate_pipeline(cfg)
-    script = pipeline.run(args.topic, style=args.style or "专业但不枯燥，适合短视频口播")
+    script = pipeline.run(args.topic, style=args.style or "涓撲笟浣嗕笉鏋嚗锛岄€傚悎鐭棰戝彛鎾?)
     logger.info("generate completed: %d chars", len(script))
 
 
@@ -400,7 +395,7 @@ def cmd_tweet(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     if not args.topic and not args.draft:
-        logger.error("必须提供 --topic 或 --draft 之一")
+        logger.error("蹇呴』鎻愪緵 --topic 鎴?--draft 涔嬩竴")
         return
     pipeline = build_tweet_pipeline(cfg)
     out_path = pipeline.run(
@@ -440,14 +435,12 @@ def cmd_produce(args):
 def cmd_produce_remotion(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
-    # --tts-mode 运行时覆盖配置
-    if getattr(args, 'tts_mode', None):
+    # --tts-mode 杩愯鏃惰鐩栭厤缃?    if getattr(args, 'tts_mode', None):
         cfg._flat["tts_mode"] = args.tts_mode
     refine_enabled = args.refine or args.step == "refine" or cfg.remotion_refine_enabled
-    # --template kinetic_text 自动启用 kinetic planner
+    # --template kinetic_text 鑷姩鍚敤 kinetic planner
     kinetic = args.kinetic or args.template == "kinetic_text"
-    # --orientation 预设宽高，--width/--height 优先级更高
-    width = args.width
+    # --orientation 棰勮瀹介珮锛?-width/--height 浼樺厛绾ф洿楂?    width = args.width
     height = args.height
     if args.orientation == "portrait" and not width and not height:
         width, height = 1080, 1920
@@ -528,10 +521,10 @@ def cmd_produce_seedance(args):
     cfg = Settings(args.config)
     setup_logging(cfg, debug=args.debug)
     pipeline = build_produce_seedance_pipeline(cfg)
-    # --tts 隐含 audio_mode=tts
+    # --tts 闅愬惈 audio_mode=tts
     audio_mode = args.audio_mode
     if args.use_tts and audio_mode == "tts":
-        pass  # 用户显式指定 --tts + --audio-mode tts
+        pass  # 鐢ㄦ埛鏄惧紡鎸囧畾 --tts + --audio-mode tts
     elif args.use_tts:
         audio_mode = "tts"
     result = pipeline.run(
@@ -579,8 +572,7 @@ def cmd_nuke(args):
 
     import shutil
 
-    # 1. 清空向量库
-    vs = VectorStore(
+    # 1. 娓呯┖鍚戦噺搴?    vs = VectorStore(
         persist_dir=cfg.vectordb_persist_dir,
         collection_name=cfg.vectordb_collection_name,
     )
@@ -591,21 +583,21 @@ def cmd_nuke(args):
     else:
         logger.info("[1/4] vectordb: already empty")
 
-    # 2. 清空转写
+    # 2. 娓呯┖杞啓
     t_dir = cfg.output_transcripts_dir
     if t_dir.exists():
         shutil.rmtree(t_dir)
         t_dir.mkdir(parents=True, exist_ok=True)
     logger.info("[2/4] transcripts: cleared")
 
-    # 3. 清空文案
+    # 3. 娓呯┖鏂囨
     s_dir = cfg.output_scripts_dir
     if s_dir.exists():
         shutil.rmtree(s_dir)
         s_dir.mkdir(parents=True, exist_ok=True)
     logger.info("[3/4] scripts: cleared")
 
-    # 4. 清空日志（当前进程占用可能删不掉，忽略）
+    # 4. 娓呯┖鏃ュ織锛堝綋鍓嶈繘绋嬪崰鐢ㄥ彲鑳藉垹涓嶆帀锛屽拷鐣ワ級
     import logging as _logging
     for handler in _logging.root.handlers[:]:
         if isinstance(handler, _logging.FileHandler):
@@ -658,7 +650,7 @@ def cmd_clear(args):
 
 
 def cmd_export_obsidian(args):
-    """导出知识库全部内容为 Obsidian 笔记。"""
+    """瀵煎嚭鐭ヨ瘑搴撳叏閮ㄥ唴瀹逛负 Obsidian 绗旇銆?""
     from datetime import datetime
     from collections import defaultdict
     from core.vectordb import VectorStore
@@ -672,13 +664,13 @@ def cmd_export_obsidian(args):
     )
     all_data = vs.get_all()
     if not all_data.get("ids"):
-        logger.warning("知识库为空，无内容可导出")
+        logger.warning("鐭ヨ瘑搴撲负绌猴紝鏃犲唴瀹瑰彲瀵煎嚭")
         return
 
     output_dir = Path(args.output) if args.output else Path("outputs/obsidian")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 按 (source_name, file_hash) 分组
+    # 鎸?(source_name, file_hash) 鍒嗙粍
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for i, doc_id in enumerate(all_data["ids"]):
         meta = all_data["metadatas"][i] if all_data["metadatas"] else {}
@@ -690,21 +682,20 @@ def cmd_export_obsidian(args):
             "meta": meta,
         })
 
-    # 每组按 chunk_index 排序并写出
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 姣忕粍鎸?chunk_index 鎺掑簭骞跺啓鍑?    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     exported = 0
     for (source_name, file_hash), chunks in groups.items():
         chunks.sort(key=lambda c: c["chunk_index"])
         full_text = "\n\n".join(c["text"] for c in chunks)
         sample_meta = chunks[0]["meta"]
 
-        # 文件名：去掉扩展名，用 source_name
+        # 鏂囦欢鍚嶏細鍘绘帀鎵╁睍鍚嶏紝鐢?source_name
         stem = Path(source_name).stem
         safe_name = "".join(ch if ch.isalnum() or ch in "-_ " else "_" for ch in stem).strip()
         if not safe_name:
             safe_name = "untitled"
 
-        # 避免同名覆盖
+        # 閬垮厤鍚屽悕瑕嗙洊
         out_path = output_dir / f"{safe_name}.md"
         counter = 1
         while out_path.exists():
@@ -720,90 +711,90 @@ def cmd_export_obsidian(args):
             f"raw_chars: {sample_meta.get('raw_chars', 0)}\n"
             f"restructured_chars: {sample_meta.get('restructured_chars', 0)}\n"
             f"exported: \"{now}\"\n"
-            f"tags:\n  - 知识库\n"
+            f"tags:\n  - 鐭ヨ瘑搴揬n"
             f"---\n\n"
         )
         out_path.write_text(frontmatter + full_text, encoding="utf-8")
         exported += 1
-        logger.info("导出: %s (%d chunks, %d chars)", out_path.name, len(chunks), len(full_text))
+        logger.info("瀵煎嚭: %s (%d chunks, %d chars)", out_path.name, len(chunks), len(full_text))
 
-    logger.info("导出完成: %d 篇笔记 -> %s", exported, output_dir)
+    logger.info("瀵煎嚭瀹屾垚: %d 绡囩瑪璁?-> %s", exported, output_dir)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="AI内容生产系统 - 短视频文案自动生成"
+        description="AI鍐呭鐢熶骇绯荤粺 - 鐭棰戞枃妗堣嚜鍔ㄧ敓鎴?
     )
     parser.add_argument("--config", "-c", default=None,
-                        help="配置文件路径 (默认: config/config.yaml)")
+                        help="閰嶇疆鏂囦欢璺緞 (榛樿: config/config.yaml)")
     parser.add_argument("--debug", action="store_true",
-                        help="启用 DEBUG 日志级别")
+                        help="鍚敤 DEBUG 鏃ュ織绾у埆")
 
-    subparsers = parser.add_subparsers(dest="command", help="可用命令")
+    subparsers = parser.add_subparsers(dest="command", help="鍙敤鍛戒护")
 
-    p_ingest = subparsers.add_parser("ingest", help="摄入音频到知识库")
-    p_ingest.add_argument("--input", "-i", required=True, help="音频文件或文件夹路径")
-    p_ingest.add_argument("--force", "-f", action="store_true", help="强制重新摄入（覆盖已有数据）")
+    p_ingest = subparsers.add_parser("ingest", help="鎽勫叆闊抽鍒扮煡璇嗗簱")
+    p_ingest.add_argument("--input", "-i", required=True, help="闊抽鏂囦欢鎴栨枃浠跺す璺緞")
+    p_ingest.add_argument("--force", "-f", action="store_true", help="寮哄埗閲嶆柊鎽勫叆锛堣鐩栧凡鏈夋暟鎹級")
 
-    p_ingest_text = subparsers.add_parser("ingest-text", help="直接文本摄入知识库")
-    p_ingest_text.add_argument("--text", "-t", default=None, help="直接输入文本内容")
-    p_ingest_text.add_argument("--input", "-i", default=None, help="文本文件路径")
-    p_ingest_text.add_argument("--name", "-n", default=None, help="来源名称（默认 direct_input）")
-    p_ingest_text.add_argument("--force", "-f", action="store_true", help="强制重新摄入")
+    p_ingest_text = subparsers.add_parser("ingest-text", help="鐩存帴鏂囨湰鎽勫叆鐭ヨ瘑搴?)
+    p_ingest_text.add_argument("--text", "-t", default=None, help="鐩存帴杈撳叆鏂囨湰鍐呭")
+    p_ingest_text.add_argument("--input", "-i", default=None, help="鏂囨湰鏂囦欢璺緞")
+    p_ingest_text.add_argument("--name", "-n", default=None, help="鏉ユ簮鍚嶇О锛堥粯璁?direct_input锛?)
+    p_ingest_text.add_argument("--force", "-f", action="store_true", help="寮哄埗閲嶆柊鎽勫叆")
 
-    p_gen = subparsers.add_parser("generate", help="根据话题生成文案")
-    p_gen.add_argument("--topic", "-t", required=True, help="话题/关键词")
-    p_gen.add_argument("--style", "-s", default=None, help="文案风格（可选）")
+    p_gen = subparsers.add_parser("generate", help="鏍规嵁璇濋鐢熸垚鏂囨")
+    p_gen.add_argument("--topic", "-t", required=True, help="璇濋/鍏抽敭璇?)
+    p_gen.add_argument("--style", "-s", default=None, help="鏂囨椋庢牸锛堝彲閫夛級")
 
-    p_polish = subparsers.add_parser("polish", help="润色已有文案")
-    p_polish.add_argument("--input", "-i", required=True, help="文案文件路径")
-    p_polish.add_argument("--feedback", "-f", required=True, help="修改意见")
+    p_polish = subparsers.add_parser("polish", help="娑﹁壊宸叉湁鏂囨")
+    p_polish.add_argument("--input", "-i", required=True, help="鏂囨鏂囦欢璺緞")
+    p_polish.add_argument("--feedback", "-f", required=True, help="淇敼鎰忚")
 
-    p_produce = subparsers.add_parser("produce", help="根据文案生成图片动画视频")
-    p_produce.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
-    p_produce.add_argument("--output", "-o", default=None, help="输出 mp4 路径（可选）")
-    p_produce.add_argument("--title", default=None, help="视频标题（可选，默认从文案标题提取）")
-    p_produce.add_argument("--style", default="clean", help="画面风格描述")
-    p_produce.add_argument("--width", type=int, default=None, help="视频宽度，默认读取配置")
-    p_produce.add_argument("--height", type=int, default=None, help="视频高度，默认读取配置")
-    p_produce.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
-    p_produce.add_argument("--job-id", default=None, help="复用或继续某个 produce 任务")
-    p_produce.add_argument("--from-plan", default=None, help="从已有 video_plan.json 继续执行")
+    p_produce = subparsers.add_parser("produce", help="鏍规嵁鏂囨鐢熸垚鍥剧墖鍔ㄧ敾瑙嗛")
+    p_produce.add_argument("--script", "-s", default=None, help="鏂囨 Markdown/TXT 鏂囦欢璺緞")
+    p_produce.add_argument("--output", "-o", default=None, help="杈撳嚭 mp4 璺緞锛堝彲閫夛級")
+    p_produce.add_argument("--title", default=None, help="瑙嗛鏍囬锛堝彲閫夛紝榛樿浠庢枃妗堟爣棰樻彁鍙栵級")
+    p_produce.add_argument("--style", default="clean", help="鐢婚潰椋庢牸鎻忚堪")
+    p_produce.add_argument("--width", type=int, default=None, help="瑙嗛瀹藉害锛岄粯璁よ鍙栭厤缃?)
+    p_produce.add_argument("--height", type=int, default=None, help="瑙嗛楂樺害锛岄粯璁よ鍙栭厤缃?)
+    p_produce.add_argument("--fps", type=int, default=None, help="瑙嗛甯х巼锛岄粯璁よ鍙栭厤缃?)
+    p_produce.add_argument("--job-id", default=None, help="澶嶇敤鎴栫户缁煇涓?produce 浠诲姟")
+    p_produce.add_argument("--from-plan", default=None, help="浠庡凡鏈?video_plan.json 缁х画鎵ц")
     p_produce.add_argument(
         "--step",
         choices=("all", "plan", "animation", "tts", "images", "clips", "subtitles", "compose"),
         default="all",
-        help="只执行某个阶段，默认 all",
+        help="鍙墽琛屾煇涓樁娈碉紝榛樿 all",
     )
-    p_produce.add_argument("--force", action="store_true", help="强制重做当前 step 对应产物")
-    p_produce.add_argument("--tts", dest="use_tts", action="store_true", help="启用 edge-tts 配音")
-    p_produce.add_argument("--no-tts", dest="use_tts", action="store_false", help="禁用配音")
+    p_produce.add_argument("--force", action="store_true", help="寮哄埗閲嶅仛褰撳墠 step 瀵瑰簲浜х墿")
+    p_produce.add_argument("--tts", dest="use_tts", action="store_true", help="鍚敤 edge-tts 閰嶉煶")
+    p_produce.add_argument("--no-tts", dest="use_tts", action="store_false", help="绂佺敤閰嶉煶")
     p_produce.set_defaults(use_tts=False)
-    p_produce.add_argument("--reuse-assets", action="store_true", help="复用已存在的图片和片段")
+    p_produce.add_argument("--reuse-assets", action="store_true", help="澶嶇敤宸插瓨鍦ㄧ殑鍥剧墖鍜岀墖娈?)
 
-    p_remotion = subparsers.add_parser("produce-remotion", help="根据文案生成 Remotion 图示视频")
-    p_remotion.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
-    p_remotion.add_argument("--job-id", default=None, help="Remotion 任务 ID")
-    p_remotion.add_argument("--output", "-o", default=None, help="输出 mp4 路径（可选）")
-    p_remotion.add_argument("--title", default=None, help="视频标题（可选）")
-    p_remotion.add_argument("--width", type=int, default=None, help="视频宽度，默认读取配置")
-    p_remotion.add_argument("--height", type=int, default=None, help="视频高度，默认读取配置")
-    p_remotion.add_argument("--orientation", choices=("portrait", "landscape"), default=None, help="预设画幅：portrait(1080x1920) / landscape(1920x1080)，--width/--height 会覆盖此预设")
-    p_remotion.add_argument("--fps", type=int, default=None, help="视频帧率，默认读取配置")
+    p_remotion = subparsers.add_parser("produce-remotion", help="鏍规嵁鏂囨鐢熸垚 Remotion 鍥剧ず瑙嗛")
+    p_remotion.add_argument("--script", "-s", default=None, help="鏂囨 Markdown/TXT 鏂囦欢璺緞")
+    p_remotion.add_argument("--job-id", default=None, help="Remotion 浠诲姟 ID")
+    p_remotion.add_argument("--output", "-o", default=None, help="杈撳嚭 mp4 璺緞锛堝彲閫夛級")
+    p_remotion.add_argument("--title", default=None, help="瑙嗛鏍囬锛堝彲閫夛級")
+    p_remotion.add_argument("--width", type=int, default=None, help="瑙嗛瀹藉害锛岄粯璁よ鍙栭厤缃?)
+    p_remotion.add_argument("--height", type=int, default=None, help="瑙嗛楂樺害锛岄粯璁よ鍙栭厤缃?)
+    p_remotion.add_argument("--orientation", choices=("portrait", "landscape"), default=None, help="棰勮鐢诲箙锛歱ortrait(1080x1920) / landscape(1920x1080)锛?-width/--height 浼氳鐩栨棰勮")
+    p_remotion.add_argument("--fps", type=int, default=None, help="瑙嗛甯х巼锛岄粯璁よ鍙栭厤缃?)
     p_remotion.add_argument(
         "--step",
         choices=("all", "plan", "tts", "kinetic", "image", "refine", "render"),
         default="all",
-        help="Remotion 阶段：all / plan / tts / kinetic / image / refine / render",
+        help="Remotion 闃舵锛歛ll / plan / tts / kinetic / image / refine / render",
     )
-    p_remotion.add_argument("--force", action="store_true", help="强制重做 Remotion input")
-    p_remotion.add_argument("--tts", action="store_true", default=False, help="启用 TTS 语音合成")
-    p_remotion.add_argument("--tts-mode", choices=("per_scene", "whole_article"), default=None, help="TTS 模式: per_scene=逐场景情绪(默认), whole_article=整篇统一风格")
-    p_remotion.add_argument("--kinetic", action="store_true", default=False, help="启用逐词动态文字模式")
-    p_remotion.add_argument("--template", default=None, help="强制指定模板（如 kinetic_text, image_elegant 等），不传则 AI 自行决策")
-    p_remotion.add_argument("--refine", action="store_true", help="在 all 流程中启用视觉自迭代")
-    p_remotion.add_argument("--refine-rounds", type=int, default=None, help="视觉自迭代最大轮数")
-    p_remotion.add_argument("--review-only", action="store_true", help="只输出视觉审查报告，不应用 patch")
+    p_remotion.add_argument("--force", action="store_true", help="寮哄埗閲嶅仛 Remotion input")
+    p_remotion.add_argument("--tts", action="store_true", default=False, help="鍚敤 TTS 璇煶鍚堟垚")
+    p_remotion.add_argument("--tts-mode", choices=("per_scene", "whole_article"), default=None, help="TTS 妯″紡: per_scene=閫愬満鏅儏缁?榛樿), whole_article=鏁寸瘒缁熶竴椋庢牸")
+    p_remotion.add_argument("--kinetic", action="store_true", default=False, help="鍚敤閫愯瘝鍔ㄦ€佹枃瀛楁ā寮?)
+    p_remotion.add_argument("--template", default=None, help="寮哄埗鎸囧畾妯℃澘锛堝 kinetic_text, image_elegant 绛夛級锛屼笉浼犲垯 AI 鑷鍐崇瓥")
+    p_remotion.add_argument("--refine", action="store_true", help="鍦?all 娴佺▼涓惎鐢ㄨ瑙夎嚜杩唬")
+    p_remotion.add_argument("--refine-rounds", type=int, default=None, help="瑙嗚鑷凯浠ｆ渶澶ц疆鏁?)
+    p_remotion.add_argument("--review-only", action="store_true", help="鍙緭鍑鸿瑙夊鏌ユ姤鍛婏紝涓嶅簲鐢?patch")
 
     p_hyperframes = subparsers.add_parser("produce-hyperframes", help="generate a safe HyperFrames technology-style video")
     p_hyperframes.add_argument("--script", "-s", required=True, help="script Markdown/TXT path")
@@ -818,63 +809,63 @@ def main():
     p_hyperframes.add_argument("--no-render", action="store_true", help="only generate sandbox files, skip HyperFrames CLI render")
     p_hyperframes.add_argument("--no-agents-sdk", action="store_true", help="skip OpenAI Agents SDK and use the local fallback generator")
 
-    p_seedance = subparsers.add_parser("produce-seedance", help="Seedance 图生视频")
-    p_seedance.add_argument("--script", "-s", default=None, help="文案 Markdown/TXT 文件路径")
-    p_seedance.add_argument("--job-id", default=None, help="任务 ID")
-    p_seedance.add_argument("--output", "-o", default=None, help="输出 mp4 路径")
-    p_seedance.add_argument("--title", default=None, help="视频标题")
-    p_seedance.add_argument("--width", type=int, default=None, help="视频宽度")
-    p_seedance.add_argument("--height", type=int, default=None, help="视频高度")
-    p_seedance.add_argument("--fps", type=int, default=None, help="视频帧率")
+    p_seedance = subparsers.add_parser("produce-seedance", help="Seedance 鍥剧敓瑙嗛")
+    p_seedance.add_argument("--script", "-s", default=None, help="鏂囨 Markdown/TXT 鏂囦欢璺緞")
+    p_seedance.add_argument("--job-id", default=None, help="浠诲姟 ID")
+    p_seedance.add_argument("--output", "-o", default=None, help="杈撳嚭 mp4 璺緞")
+    p_seedance.add_argument("--title", default=None, help="瑙嗛鏍囬")
+    p_seedance.add_argument("--width", type=int, default=None, help="瑙嗛瀹藉害")
+    p_seedance.add_argument("--height", type=int, default=None, help="瑙嗛楂樺害")
+    p_seedance.add_argument("--fps", type=int, default=None, help="瑙嗛甯х巼")
     p_seedance.add_argument(
         "--step",
         choices=("all", "plan", "images", "videos", "subtitles", "compose", "unify"),
         default="all",
-        help="执行阶段：all / plan / images / videos / subtitles / compose / unify",
+        help="鎵ц闃舵锛歛ll / plan / images / videos / subtitles / compose / unify",
     )
-    p_seedance.add_argument("--force", action="store_true", help="强制重做")
+    p_seedance.add_argument("--force", action="store_true", help="寮哄埗閲嶅仛")
     p_seedance.add_argument(
         "--audio-mode",
         choices=("seedance-audio", "tts", "none"),
         default="tts",
-        help="音频模式：seedance-audio(S自带音频) / tts(配音合成) / none(无音频)",
+        help="闊抽妯″紡锛歴eedance-audio(S鑷甫闊抽) / tts(閰嶉煶鍚堟垚) / none(鏃犻煶棰?",
     )
-    p_seedance.add_argument("--tts", dest="use_tts", action="store_true", help="启用 TTS 配音")
+    p_seedance.add_argument("--tts", dest="use_tts", action="store_true", help="鍚敤 TTS 閰嶉煶")
     p_seedance.add_argument("--no-tts", dest="use_tts", action="store_false")
     p_seedance.set_defaults(use_tts=False)
-    p_seedance.add_argument("--auto-confirm", action="store_true", help="自动生成，跳过确认")
-    p_seedance.add_argument("--regenerate", type=int, default=None, help="重新生成指定 scene 的图片")
-    p_seedance.add_argument("--user-images", default=None, help="用户自定义图片目录")
+    p_seedance.add_argument("--auto-confirm", action="store_true", help="鑷姩鐢熸垚锛岃烦杩囩‘璁?)
+    p_seedance.add_argument("--regenerate", type=int, default=None, help="閲嶆柊鐢熸垚鎸囧畾 scene 鐨勫浘鐗?)
+    p_seedance.add_argument("--user-images", default=None, help="鐢ㄦ埛鑷畾涔夊浘鐗囩洰褰?)
 
-    p_review_video = subparsers.add_parser("review-video", help="用多模态模型审查已生成视频")
-    p_review_video.add_argument("--video", "-v", required=True, help="待审查 mp4 路径")
-    p_review_video.add_argument("--job-id", default=None, help="审查任务 ID，默认取视频文件名")
-    p_review_video.add_argument("--frames", type=int, default=7, help="抽取关键帧数量，默认 7")
-    p_review_video.add_argument("--max-frame-width", type=int, default=768, help="送审关键帧最大宽度，默认 768")
-    p_review_video.add_argument("--output-dir", default=None, help="审查报告输出目录")
-    p_review_video.add_argument("--reviewer-instance", default=None, help="覆盖配置中的 reviewer instance")
+    p_review_video = subparsers.add_parser("review-video", help="鐢ㄥ妯℃€佹ā鍨嬪鏌ュ凡鐢熸垚瑙嗛")
+    p_review_video.add_argument("--video", "-v", required=True, help="寰呭鏌?mp4 璺緞")
+    p_review_video.add_argument("--job-id", default=None, help="瀹℃煡浠诲姟 ID锛岄粯璁ゅ彇瑙嗛鏂囦欢鍚?)
+    p_review_video.add_argument("--frames", type=int, default=7, help="鎶藉彇鍏抽敭甯ф暟閲忥紝榛樿 7")
+    p_review_video.add_argument("--max-frame-width", type=int, default=768, help="閫佸鍏抽敭甯ф渶澶у搴︼紝榛樿 768")
+    p_review_video.add_argument("--output-dir", default=None, help="瀹℃煡鎶ュ憡杈撳嚭鐩綍")
+    p_review_video.add_argument("--reviewer-instance", default=None, help="瑕嗙洊閰嶇疆涓殑 reviewer instance")
 
-    subparsers.add_parser("status", help="查看知识库状态")
+    subparsers.add_parser("status", help="鏌ョ湅鐭ヨ瘑搴撶姸鎬?)
 
-    p_clear = subparsers.add_parser("clear", help="清空知识库")
-    p_clear.add_argument("--confirm", action="store_true", help="确认清空")
+    p_clear = subparsers.add_parser("clear", help="娓呯┖鐭ヨ瘑搴?)
+    p_clear.add_argument("--confirm", action="store_true", help="纭娓呯┖")
 
-    p_nuke = subparsers.add_parser("nuke", help="清除所有数据（知识库+转写+文案+日志）")
-    p_nuke.add_argument("--confirm", action="store_true", help="确认清除所有数据")
+    p_nuke = subparsers.add_parser("nuke", help="娓呴櫎鎵€鏈夋暟鎹紙鐭ヨ瘑搴?杞啓+鏂囨+鏃ュ織锛?)
+    p_nuke.add_argument("--confirm", action="store_true", help="纭娓呴櫎鎵€鏈夋暟鎹?)
 
-    p_serve = subparsers.add_parser("serve", help="启动 REST API 服务")
-    p_serve.add_argument("--host", default="0.0.0.0", help="监听地址 (默认: 0.0.0.0)")
-    p_serve.add_argument("--port", type=int, default=8000, help="监听端口 (默认: 8000)")
+    p_serve = subparsers.add_parser("serve", help="鍚姩 REST API 鏈嶅姟")
+    p_serve.add_argument("--host", default="0.0.0.0", help="鐩戝惉鍦板潃 (榛樿: 0.0.0.0)")
+    p_serve.add_argument("--port", type=int, default=8000, help="鐩戝惉绔彛 (榛樿: 8000)")
 
-    p_tweet = subparsers.add_parser("tweet", help="生成图文推文")
-    p_tweet.add_argument("--topic", "-t", default=None, help="话题/关键词（与 --draft 二选一）")
-    p_tweet.add_argument("--draft", "-d", default=None, help="文章初稿文件路径（与 --topic 二选一）")
-    p_tweet.add_argument("--feedback", "-f", default=None, help="润色意见（可选）")
-    p_tweet.add_argument("--output", "-o", default=None, help="输出 MD 路径（可选）")
-    p_tweet.add_argument("--no-images", action="store_true", help="只生成文字，不生成配图")
+    p_tweet = subparsers.add_parser("tweet", help="鐢熸垚鍥炬枃鎺ㄦ枃")
+    p_tweet.add_argument("--topic", "-t", default=None, help="璇濋/鍏抽敭璇嶏紙涓?--draft 浜岄€変竴锛?)
+    p_tweet.add_argument("--draft", "-d", default=None, help="鏂囩珷鍒濈鏂囦欢璺緞锛堜笌 --topic 浜岄€変竴锛?)
+    p_tweet.add_argument("--feedback", "-f", default=None, help="娑﹁壊鎰忚锛堝彲閫夛級")
+    p_tweet.add_argument("--output", "-o", default=None, help="杈撳嚭 MD 璺緞锛堝彲閫夛級")
+    p_tweet.add_argument("--no-images", action="store_true", help="鍙敓鎴愭枃瀛楋紝涓嶇敓鎴愰厤鍥?)
 
-    p_export = subparsers.add_parser("export-obsidian", help="导出知识库为 Obsidian 笔记")
-    p_export.add_argument("--output", "-o", default=None, help="输出目录（默认 outputs/obsidian）")
+    p_export = subparsers.add_parser("export-obsidian", help="瀵煎嚭鐭ヨ瘑搴撲负 Obsidian 绗旇")
+    p_export.add_argument("--output", "-o", default=None, help="杈撳嚭鐩綍锛堥粯璁?outputs/obsidian锛?)
 
     args = parser.parse_args()
 

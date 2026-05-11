@@ -1,8 +1,8 @@
 # Contributing / 贡献指南
 
-Thanks for helping improve AI Content Pipeline.
+Thanks for helping improve AI Video Generator.
 
-感谢你参与改进 AI Content Pipeline。
+感谢你参与改进 AI Video Generator。
 
 ## Development Setup / 开发环境
 

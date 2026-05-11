@@ -1,12 +1,14 @@
-# AI Content Pipeline
+# AI Video Generator
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-AI Content Pipeline 是一个本地优先的 AI 内容生产工具。它可以把选题、文案、笔记和音频转成脚本、知识库内容、短视频素材、Remotion 视频，以及 HyperFrames 风格的科技感视频。
+AI Video Generator 是一个本地优先的 AI 视频生成工具，可以把选题、脚本、笔记、知识库内容和音频转成短视频素材、Remotion 视频、`sketch_course` 教学视频，以及 HyperFrames 风格的科技感视频。
+
+关键词：AI 视频生成器、Remotion 视频生成、HyperFrames 视频、AI 短视频、文案转视频、知识库视频生成、Whisper 语音识别、本地 AI 视频工作流。
 
 ## 功能
 
-- 脚本生成和润色
+- AI 脚本生成和润色
 - 文本和音频导入
 - 知识库辅助写作
 - Remotion 视频生成
@@ -104,6 +106,23 @@ http://localhost:8000
 
 Hugging Face 模型下载会使用 Docker named volume `hf-cache`。
 
+### 模型下载和缓存
+
+知识库检索使用 `embedding.model_name` 配置的 embedding 模型。语音识别使用 `stt.model_size` 配置的 Whisper 模型。
+
+使用 Docker 时，镜像在构建阶段已经包含默认 embedding 模型 `BAAI/bge-small-zh-v1.5`。Whisper 语音识别模型会在首次使用语音识别时下载。
+
+不使用 Docker 时，`uv sync` 只安装 Python 依赖。embedding 和 Whisper 模型都会在首次使用时下载，除非你的本地 Hugging Face 缓存中已经有对应模型。
+
+运行时下载的 Hugging Face 模型会被缓存并复用：
+
+- Docker：缓存到 Docker named volume `hf-cache`
+- 本地直接运行：缓存到 Hugging Face 用户缓存目录，或者你设置的 `HF_HOME`
+
+默认示例中，CPU 语音识别使用 `small`，CUDA 语音识别使用 `medium`。首次使用会比较慢，因为需要下载并加载模型。
+
+只有在需要的 embedding 和 Whisper 模型都已经下载完成后，再设置 `HF_HUB_OFFLINE=1`。
+
 ### CUDA Docker
 
 只有在机器有 NVIDIA GPU、NVIDIA 驱动、Docker GPU 支持，并且 `--gpus` 运行时可用时，才使用 CUDA 镜像。
@@ -186,7 +205,7 @@ HF_HUB_OFFLINE=1
 
 知识库检索使用 `embedding.model_name` 配置的 embedding 模型。Docker 后端镜像包含默认的 `BAAI/bge-small-zh-v1.5` embedding 模型。
 
-如果修改了 `embedding.model_name`，新模型会在首次使用时下载，并缓存到 `hf-cache`。
+如果修改了 `embedding.model_name`，新模型会在首次使用时下载。Docker 会缓存到 `hf-cache`；本地直接运行会缓存到 Hugging Face 用户缓存目录或 `HF_HOME`。
 
 ## 使用 Make
 

@@ -1,12 +1,14 @@
-# AI Content Pipeline
+# AI Video Generator
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-AI Content Pipeline is a local-first AI content production toolkit. It turns topics, scripts, notes, and audio into scripts, knowledge-base content, short-video assets, Remotion videos, and HyperFrames-style technology videos.
+AI Video Generator is a local-first AI video generation toolkit for creating short videos from topics, scripts, notes, knowledge-base content, and audio. It combines LLM writing, knowledge retrieval, Whisper speech recognition, Remotion rendering, `sketch_course` templates, and HyperFrames-style technology videos.
+
+Keywords: AI video generator, Remotion video generator, HyperFrames video, AI short video, script to video, knowledge-base video generation, Whisper transcription, local AI video workflow.
 
 ## Features
 
-- Script generation and polishing
+- AI script generation and polishing
 - Text and audio ingestion
 - Knowledge-base assisted writing
 - Remotion video generation
@@ -104,6 +106,23 @@ Mounted local directories:
 
 Hugging Face model downloads use the Docker named volume `hf-cache`.
 
+### Model Downloads And Cache
+
+Knowledge retrieval uses the embedding model configured in `embedding.model_name`. Speech recognition uses the Whisper model configured in `stt.model_size`.
+
+With Docker, the image includes the default embedding model `BAAI/bge-small-zh-v1.5` during build. Whisper speech-recognition models are downloaded at runtime on first use.
+
+Without Docker, `uv sync` installs Python packages only. Embedding and Whisper models are downloaded at runtime on first use, unless they are already available in your local Hugging Face cache.
+
+Runtime Hugging Face downloads are cached and reused:
+
+- Docker: cached in the Docker named volume `hf-cache`
+- Local run: cached by Hugging Face in your user cache directory, or in `HF_HOME` if you set it
+
+The default example uses `small` for CPU speech recognition and `medium` for CUDA speech recognition. First use can be slow because the model must be downloaded and loaded.
+
+Set `HF_HUB_OFFLINE=1` only after the required embedding and Whisper models have already been downloaded.
+
 ### CUDA Docker
 
 Use the CUDA image only on machines with an NVIDIA GPU, NVIDIA driver, Docker GPU support, and a working `--gpus` runtime.
@@ -186,7 +205,7 @@ HF_HUB_OFFLINE=1
 
 Knowledge-base retrieval uses the embedding model configured in `embedding.model_name`. The Docker backend image includes the default `BAAI/bge-small-zh-v1.5` embedding model.
 
-If you change `embedding.model_name`, the new model is downloaded on first use and cached in `hf-cache`.
+If you change `embedding.model_name`, the new model is downloaded on first use. Docker caches it in `hf-cache`; local runs cache it in the Hugging Face user cache or `HF_HOME`.
 
 ## Use With Make
 

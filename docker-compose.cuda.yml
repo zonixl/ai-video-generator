@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ai-content-pipeline-backend:cuda
+    image: ai-video-generator-backend:cuda
     build:
       target: backend-cuda
     gpus: all

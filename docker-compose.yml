@@ -1,6 +1,8 @@
+name: ai-video-generator
+
 services:
   backend:
-    image: ai-content-pipeline-backend:cpu
+    image: ai-video-generator-backend:cpu
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,7 +26,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ai-content-pipeline-frontend:latest
+    image: ai-video-generator-frontend:latest
     build:
       context: .
       dockerfile: Dockerfile

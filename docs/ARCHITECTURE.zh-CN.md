@@ -1,4 +1,4 @@
-# 架构
+# AI Video Generator 架构
 
 [English](ARCHITECTURE.md) | [中文](ARCHITECTURE.zh-CN.md)
 

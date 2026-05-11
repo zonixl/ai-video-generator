@@ -1,4 +1,4 @@
-# Architecture
+# AI Video Generator Architecture
 
 [English](ARCHITECTURE.md) | [中文](ARCHITECTURE.zh-CN.md)
 
