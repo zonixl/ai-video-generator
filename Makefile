@@ -1,5 +1,5 @@
 # AI Content Pipeline
-# 用法: make <target> ARGS='...'
+# Usage / 用法: make <target> ARGS='...'
 
 help:
 	@if [ -z "$(CMD)" ]; then \
@@ -7,42 +7,44 @@ help:
 		echo " AI Content Pipeline"; \
 		echo "============================================"; \
 		echo ""; \
-		echo "  Commands:"; \
-		echo "    make ingest      audio -> knowledge base"; \
-		echo "    make generate    topic -> script"; \
-		echo "    make polish      polish script"; \
-		echo "    make produce     script -> video"; \
-		echo "    make remotion    script -> Remotion diagram video"; \
-		echo "    make kinetic     script -> kinetic text video"; \
-			echo "    make remotion    (image_* 模板会自动配图)"; \
-		echo "    make review      review generated mp4"; \
-		echo "    make status      view knowledge base"; \
-		echo "    make clear       clear knowledge base"; \
-		echo "    make nuke        clear ALL data"; \
-	echo "    make tweet       generate image-text tweet"; \
-	echo "    make hyperframes script -> HyperFrames tech video"; \
-	echo "    make serve       start REST API server"; \
-	echo "    make export      export knowledge base to Obsidian"; \
-		echo "    make test        run tests"; \
-		echo "    make preview     open Remotion Studio"; \
+		echo "  Commands / 命令:"; \
+		echo "    make install     install Python dependencies / 安装 Python 依赖"; \
+		echo "    make ingest      audio -> knowledge base / 音频摄入知识库"; \
+		echo "    make generate    topic -> script / 选题生成文案"; \
+		echo "    make polish      polish script / 润色文案"; \
+		echo "    make produce     script -> video / 文案生成常规视频"; \
+		echo "    make remotion    script -> Remotion video / 文案生成 Remotion 视频"; \
+		echo "    make kinetic     script -> kinetic text video / 动态文字视频"; \
+		echo "    make landscape   landscape Remotion video / 横屏 Remotion 视频"; \
+		echo "    make hyperframes script -> HyperFrames tech video / 科技感视频"; \
+		echo "    make seedance    image/video generation workflow / 图生视频流程"; \
+		echo "    make tweet       generate image-text tweet / 生成图文"; \
+		echo "    make review      review generated mp4 / 审查视频"; \
+		echo "    make serve       start REST API server / 启动后端"; \
+		echo "    make preview     open Remotion Studio / 打开 Remotion 预览"; \
+		echo "    make status      view knowledge base / 查看知识库状态"; \
+		echo "    make export      export knowledge base to Obsidian / 导出知识库"; \
+		echo "    make clear       clear knowledge base / 清空知识库"; \
+		echo "    make nuke        clear ALL local data / 清空全部本地数据"; \
+		echo "    make test        run local tests / 运行本地测试"; \
 		echo ""; \
-		echo "  Usage:"; \
-		echo "    make <target> ARGS='...'     run a command"; \
-		echo "    make help CMD=<target>       view all params of a command"; \
+		echo "  Usage / 用法:"; \
+		echo "    make <target> ARGS='...'     run a command / 运行命令"; \
+		echo "    make help CMD=<target>       view params / 查看参数"; \
 		echo ""; \
-		echo "  Examples:"; \
+		echo "  Examples / 示例:"; \
 		echo "    make help CMD=generate"; \
 		echo "    make help CMD=remotion"; \
-		echo "    make generate ARGS='-t AI'"; \
-		echo "    make remotion ARGS='--script outputs/scripts/xxx.md --job-id r1 --tts --force'"; \
-		echo "    make kinetic ARGS='--script outputs/scripts/xxx.md --job-id k1 --tts --force'"; \
+		echo "    make generate ARGS='--topic AI'"; \
+		echo "    make remotion ARGS='--script outputs/scripts/demo.md --title Demo --template sketch_course --force'"; \
+		echo "    make hyperframes ARGS='--script outputs/hf_demo.txt --title Demo --duration 10 --ratio 9:16 --no-render'"; \
 	else \
 		case "$(CMD)" in \
 			ingest) uv run python main.py ingest --help ;; \
 			generate) uv run python main.py generate --help ;; \
 			polish) uv run python main.py polish --help ;; \
 			produce) uv run python main.py produce --help ;; \
-			remotion|kinetic) uv run python main.py produce-remotion --help ;; \
+			remotion|kinetic|landscape) uv run python main.py produce-remotion --help ;; \
 			review) uv run python main.py review-video --help ;; \
 			clear) uv run python main.py clear --help ;; \
 			nuke) uv run python main.py nuke --help ;; \
@@ -50,8 +52,9 @@ help:
 			tweet) uv run python main.py tweet --help ;; \
 			export) uv run python main.py export-obsidian --help ;; \
 			hyperframes) uv run python main.py produce-hyperframes --help ;; \
+			seedance) uv run python main.py produce-seedance --help ;; \
 			status) uv run python main.py status --help ;; \
-			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic hyperframes tweet export review clear nuke status serve" ;; \
+			*) echo "Unknown command: $(CMD)"; echo "Available: ingest generate polish produce remotion kinetic landscape hyperframes seedance tweet export review clear nuke status serve" ;; \
 		esac \
 	fi
 

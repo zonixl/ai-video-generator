@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HF_HOME: /app/data/huggingface
+      TRANSFORMERS_CACHE: /app/data/huggingface
+      SENTENCE_TRANSFORMERS_HOME: /app/data/sentence-transformers
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-1}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    restart: unless-stopped

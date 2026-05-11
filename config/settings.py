@@ -13,6 +13,24 @@ from pathlib import Path
 import yaml
 
 
+def _load_dotenv_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
 def _resolve_env_vars(value: str) -> str:
     """解析字符串中的 ${VAR_NAME} 环境变量引用。"""
     if not isinstance(value, str):
@@ -44,6 +62,9 @@ class Settings:
         self._load()
 
     def _load(self):
+        project_root = self._config_path.parent.parent
+        _load_dotenv_file(project_root / ".env")
+
         with open(self._config_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 

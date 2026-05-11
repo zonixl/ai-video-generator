@@ -12,6 +12,8 @@ venv/
 
 # uv temp
 .uv-temp/
+.uv-cache/
+.docker-config/
 
 # IDE
 .idea/
@@ -25,6 +27,7 @@ venv/
 # Test
 .pytest_cache/
 .coverage
+tests/
 
 # Node / Remotion
 node_modules/
@@ -35,6 +38,9 @@ remotion/out/
 data/vectordb/
 outputs/
 logs/
+*.log
+*.db
+*.sqlite
 
 # Audio / media files
 *.mp3
@@ -48,6 +54,9 @@ logs/
 
 # Config with secrets
 config/config.yaml
+.env
+.env.*
+!.env.example
 
 # Shim
 pyaudioop.py
@@ -56,3 +65,4 @@ pyaudioop.py
 /remotion/public/
 /test_tts/
 /data/jobs.db
+/fronted/dist/

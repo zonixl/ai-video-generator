@@ -1,0 +1,185 @@
+audio:
+  sample_rate: 16000
+  silence_threshold: -40
+  min_silence_duration: 1.0
+  chunk_max_duration: 30
+
+ingest:
+  parallel_workers: 1
+
+stt:
+  # Whisper model names: tiny, base, small, medium, large, turbo.
+  # English-only variants: tiny.en, base.en, small.en, medium.en.
+  model_size: "small"
+  device: "cpu"
+  compute_type: "int8"
+  language: "zh"
+
+models:
+  default_instance: "script_writer"
+  providers:
+    default_openai:
+      type: "openai_compatible"
+      base_url: "${DEFAULT_LLM_BASE_URL}"
+      api_key: "${DEFAULT_LLM_API_KEY}"
+      timeout: 120
+    ollama:
+      type: "ollama"
+      base_url: "${OLLAMA_BASE_URL}"
+      timeout: 300
+    deepseek:
+      type: "openai_compatible"
+      base_url: "${DEEPSEEK_BASE_URL}"
+      api_key: "${DEEPSEEK_API_KEY}"
+      timeout: 120
+    qwen:
+      type: "openai_compatible"
+      base_url: "${QWEN_BASE_URL}"
+      api_key: "${QWEN_API_KEY}"
+      timeout: 120
+    mimo:
+      type: "openai_compatible"
+      base_url: "${MIMO_BASE_URL}"
+      api_key: "${MIMO_API_KEY}"
+      timeout: 120
+  instances:
+    script_writer:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.7
+      max_tokens: 10240
+    polisher:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.5
+      max_tokens: 10240
+    summarizer:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.3
+      max_tokens: 40960
+    scene_planner:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.2
+      max_tokens: 20000
+    animation_planner:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.2
+      max_tokens: 4096
+    kinetic_planner:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.3
+      max_tokens: 4096
+    remotion_designer:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.2
+      max_tokens: 12000
+    remotion_reviewer:
+      provider: "${DEFAULT_LLM_PROVIDER}"
+      model: "${DEFAULT_LLM_MODEL}"
+      temperature: 0.1
+      max_tokens: 4096
+
+embedding:
+  model_name: "BAAI/bge-small-zh-v1.5"
+  device: "cpu"
+  normalize: true
+
+vectordb:
+  persist_dir: "./data/vectordb"
+  collection_name: "knowledge_base"
+
+retrieval:
+  strategy: "mmr"
+  top_k: 5
+  mmr_lambda: 0.6
+
+text:
+  chunk_size: 500
+  chunk_overlap: 50
+
+output:
+  transcripts_dir: "./outputs/transcripts"
+  scripts_dir: "./outputs/scripts"
+  audio_dir: "./outputs/audio"
+  images_dir: "./outputs/images"
+  videos_dir: "./outputs/videos"
+  clips_dir: "./outputs/videos/clips"
+  subtitles_dir: "./outputs/subtitles"
+  plans_dir: "./outputs/plans"
+  remotion_dir: "./outputs/remotion"
+  video_reviews_dir: "./outputs/video_reviews"
+  tweets_dir: "./outputs/tweets"
+
+logging:
+  level: "INFO"
+  file: "./logs/pipeline.log"
+  file_level: "DEBUG"
+  format: "%(asctime)s [%(levelname)-5s] [%(name)s] %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+
+tts:
+  engine: "edge-tts"
+  voice: "zh-CN-XiaoxiaoNeural"
+  speed: 1.0
+  mode: "per_scene"
+  iflytek:
+    host: "api-dx.xf-yun.com"
+    app_id: "${IFLYTEK_APP_ID}"
+    api_key: "${IFLYTEK_API_KEY}"
+    api_secret: "${IFLYTEK_API_SECRET}"
+  mimo:
+    base_url: "${TTS_MIMO_BASE_URL}"
+    api_key: "${TTS_MIMO_API_KEY}"
+    model: "mimo-v2.5-tts"
+
+image_gen:
+  engine: "placeholder"
+  base_url: ""
+  api_key: "${IMAGE_GEN_API_KEY}"
+  model: ""
+  size: "1024x1024"
+  quality: "low"
+  watermark: false
+  width: 1080
+  height: 1920
+
+video_gen:
+  engine: "disabled"
+  base_url: "${VIDEO_GEN_BASE_URL}"
+  api_key: "${VIDEO_GEN_API_KEY}"
+  model: "doubao-seedance-1-5-pro-251215"
+  resolution: "480p"
+  ratio: "9:16"
+  duration: 5
+  generate_audio: false
+  watermark: false
+  poll_interval: 5.0
+  timeout: 300
+
+video:
+  scene_splitter: "rule"
+  scene_planner_instance: "scene_planner"
+  animation_planner: "rule"
+  animation_planner_instance: "animation_planner"
+  fps: 30
+  resolution: [1080, 1920]
+  transition: "fade"
+  subtitle_font: "SourceHanSans"
+  min_scene_duration: 5.0
+  max_scene_duration: 8.0
+  chars_per_second: 4.5
+  subtitle_max_chars: 20
+
+remotion:
+  planner: "rule"
+  planner_instance: "remotion_designer"
+  project_dir: "./remotion"
+  refine_enabled: false
+  refine_rounds: 2
+  reviewer_instance: "remotion_reviewer"
+  review_frames_per_scene: 3
