@@ -35,7 +35,7 @@ remotion/node_modules/
 remotion/out/
 
 # Project data (runtime)
-data/vectordb/
+data/
 outputs/
 logs/
 *.log
@@ -64,5 +64,4 @@ pyaudioop.py
 /Pixelle-Video-main/
 /remotion/public/
 /test_tts/
-/data/jobs.db
 /fronted/dist/

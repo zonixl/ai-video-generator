@@ -57,23 +57,27 @@ def build_generate_pipeline(cfg: Settings):
     from core.retriever import Retriever
     from pipeline.generate import GeneratePipeline
     model_mgr = build_model_manager(cfg)
-    embedder = Embedder(
-        model_name=cfg.embedding_model_name,
-        device=cfg.embedding_device,
-        normalize=cfg.embedding_normalize,
-    )
-    vs = VectorStore(
-        persist_dir=cfg.vectordb_persist_dir,
-        collection_name=cfg.vectordb_collection_name,
-        embedder=embedder,
-    )
-    retriever = Retriever(
-        vector_store=vs,
-        embedder=embedder,
-        strategy=cfg.retrieval_strategy,
-        top_k=cfg.retrieval_top_k,
-        mmr_lambda=cfg.retrieval_mmr_lambda,
-    )
+    retriever = None
+    try:
+        embedder = Embedder(
+            model_name=cfg.embedding_model_name,
+            device=cfg.embedding_device,
+            normalize=cfg.embedding_normalize,
+        )
+        vs = VectorStore(
+            persist_dir=cfg.vectordb_persist_dir,
+            collection_name=cfg.vectordb_collection_name,
+            embedder=embedder,
+        )
+        retriever = Retriever(
+            vector_store=vs,
+            embedder=embedder,
+            strategy=cfg.retrieval_strategy,
+            top_k=cfg.retrieval_top_k,
+            mmr_lambda=cfg.retrieval_mmr_lambda,
+        )
+    except Exception as exc:
+        logger.warning("Knowledge retrieval disabled for generation: %s", exc)
     return GeneratePipeline(retriever, model_mgr, cfg)
 
 

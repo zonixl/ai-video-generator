@@ -27,7 +27,14 @@ class GeneratePipeline:
         # ---- Step 1: 检索 ----
         t0 = time.time()
         logger.info("[1/3] Retrieving: '%s'", topic)
-        docs = self._retriever.retrieve(topic, top_k=self._cfg.retrieval_top_k)
+        docs = []
+        if self._retriever is not None:
+            try:
+                docs = self._retriever.retrieve(topic, top_k=self._cfg.retrieval_top_k)
+            except Exception as exc:
+                logger.warning("Knowledge retrieval skipped: %s", exc)
+        else:
+            logger.info("Knowledge retrieval skipped: retriever unavailable")
         logger.info("      -> %d docs found (%.1fs)", len(docs), time.time() - t0)
         for i, doc in enumerate(docs):
             text_preview = doc["text"][:80].replace("\n", " ")
@@ -82,16 +89,20 @@ class GeneratePipeline:
 
         # Step 2: 用关键词检索知识库
         context = ""
-        if keywords:
+        if keywords and self._retriever is not None:
             logger.info("  [2/3] Searching knowledge base with keywords ...")
             all_docs = []
             seen_ids = set()
             for kw in keywords[:3]:  # 最多用3个关键词检索
                 docs = self._retriever.retrieve(kw, top_k=3)
-                for doc in docs:
-                    if doc["id"] not in seen_ids:
-                        seen_ids.add(doc["id"])
-                        all_docs.append(doc)
+                try:
+                    docs = self._retriever.retrieve(kw, top_k=3)
+                    for doc in docs:
+                        if doc["id"] not in seen_ids:
+                            seen_ids.add(doc["id"])
+                            all_docs.append(doc)
+                except Exception as exc:
+                    logger.warning("Knowledge retrieval skipped for keyword '%s': %s", kw, exc)
             logger.info("  -> %d relevant docs found", len(all_docs))
 
             if all_docs:
@@ -99,6 +110,8 @@ class GeneratePipeline:
                     f"【来源 {d['metadata'].get('source_name', '?')}】\n{d['text']}"
                     for d in all_docs[:5]
                 )
+        elif self._retriever is None:
+            logger.info("  [2/3] Knowledge retrieval skipped: retriever unavailable")
 
         # Step 3: 润色（有资料 vs 无资料）
         logger.info("  [3/3] Polishing%s ...", " with KB context" if context else " directly")

@@ -1,0 +1,8 @@
+services:
+  backend:
+    image: ai-content-pipeline-backend:cuda
+    build:
+      target: backend-cuda
+    gpus: all
+    environment:
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-0}

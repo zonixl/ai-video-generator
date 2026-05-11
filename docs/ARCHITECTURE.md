@@ -49,3 +49,12 @@ flowchart LR
 ```
 
 `models.providers` defines available model endpoints. `models.instances` maps each task to a provider and model.
+
+## Docker Images
+
+- `backend`: default CPU backend image
+- `backend-cpu`: explicit CPU backend target
+- `backend-cuda`: optional CUDA backend target for NVIDIA GPU hosts
+- `frontend`: Nginx image serving the Vite build
+
+`docker-compose.yml` starts the CPU backend and frontend. `docker-compose.cuda.yml` overrides the backend target and requests GPU access.

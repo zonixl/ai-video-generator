@@ -75,6 +75,8 @@ For per-task model routing, edit `models.instances` in `config/config.yaml`.
 
 ## Use With Docker
 
+Docker is the easiest way to run the app. The default image is CPU-only and is suitable for most users.
+
 ```bash
 docker compose up --build
 ```
@@ -98,6 +100,37 @@ Mounted local directories:
 ./outputs            -> /app/outputs
 ./logs               -> /app/logs
 ./data               -> /app/data
+```
+
+Hugging Face model downloads use the Docker named volume `hf-cache`.
+
+### CUDA Docker
+
+Use the CUDA image only on machines with an NVIDIA GPU, NVIDIA driver, Docker GPU support, and a working `--gpus` runtime.
+
+Verify Docker GPU access first:
+
+```bash
+docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+```
+
+Start the CUDA backend:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cuda.yml up --build
+```
+
+The CUDA compose file uses GPU `0` by default. To select another GPU, set `CUDA_VISIBLE_DEVICES` in `.env`, for example `CUDA_VISIBLE_DEVICES=0,1`.
+
+Enable CUDA in `config/config.yaml` when you want embedding or speech recognition to use the GPU:
+
+```yaml
+stt:
+  device: "cuda"
+  compute_type: "float16"
+
+embedding:
+  device: "cuda"
 ```
 
 ## Speech Recognition
@@ -138,6 +171,22 @@ embedding:
 The model must be available before using audio ingestion. Use an existing local/cache model, or enable online model download in your environment before running the audio ingestion command.
 
 Whisper model reference: [openai/whisper](https://github.com/openai/whisper#available-models-and-languages).
+
+When using Docker for the first time, missing Hugging Face models are downloaded automatically. Whisper models are cached in the Docker named volume `hf-cache`.
+
+Speech recognition can be slow. The first run may spend several minutes downloading the Whisper model. Larger models such as `medium` and `large` are slower to download and run. CPU mode is slower than CUDA mode; use the CUDA Docker command when you want GPU acceleration.
+
+To run with local cached models only, set:
+
+```env
+HF_HUB_OFFLINE=1
+```
+
+## Knowledge Retrieval
+
+Knowledge-base retrieval uses the embedding model configured in `embedding.model_name`. The Docker backend image includes the default `BAAI/bge-small-zh-v1.5` embedding model.
+
+If you change `embedding.model_name`, the new model is downloaded on first use and cached in `hf-cache`.
 
 ## Use With Make
 
