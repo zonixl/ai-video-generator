@@ -17,6 +17,18 @@ AI Video Generator 是一个本地优先的 AI 视频生成工具，可以把选
 - 可选 TTS、图片生成和视频生成服务
 - CLI、Makefile、FastAPI 后端和 Vite 前端
 
+## 演示
+
+| 模板 | 预览 |
+|------|------|
+| HyperFrames 科技感 | <video src="examples/hyperframes.mp4" width="240" controls></video> |
+| Remotion 灵动文字 | <video src="examples/remotion-灵动文字.mp4" width="480" controls></video> |
+| Remotion 全屏背景 | <video src="examples/remotion-全屏背景.mp4" width="480" controls></video> |
+| Remotion 手绘课堂 | <video src="examples/remotion-手绘课堂.mp4" width="480" controls></video> |
+| Remotion 雅致插画 | <video src="examples/remotion-雅致插画.mp4" width="480" controls></video> |
+
+更多示例见 [examples/](examples/)。
+
 ## 文档
 
 - [架构](docs/ARCHITECTURE.zh-CN.md)
@@ -47,6 +59,10 @@ npm install
 ```bash
 cd remotion
 npm install
+```
+
+```bash
+npm install -g hyperframes
 ```
 
 ## 配置
@@ -268,6 +284,12 @@ uv run python main.py produce-hyperframes --script outputs/hf_demo.txt --title "
 cd remotion
 npm run preview
 ```
+
+## 致谢
+
+本项目使用了以下开源项目：
+
+- [HyperFrames](https://github.com/heygen-com/hyperframes) — AI 驱动的动画视频生成工具，由 HeyGen 开源
 
 ## License
 

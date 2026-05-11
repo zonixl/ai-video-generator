@@ -17,6 +17,18 @@ Keywords: AI video generator, Remotion video generator, HyperFrames video, AI sh
 - Optional TTS, image generation, and video generation providers
 - CLI, Makefile, FastAPI backend, and Vite frontend
 
+## Demo
+
+| Template | Preview |
+|----------|---------|
+| HyperFrames Tech HUD | <video src="examples/hyperframes.mp4" width="240" controls></video> |
+| Remotion Kinetic Typography | <video src="examples/remotion-灵动文字.mp4" width="480" controls></video> |
+| Remotion Full-Screen Background | <video src="examples/remotion-全屏背景.mp4" width="480" controls></video> |
+| Remotion Sketch Course | <video src="examples/remotion-手绘课堂.mp4" width="480" controls></video> |
+| Remotion Elegant Illustration | <video src="examples/remotion-雅致插画.mp4" width="480" controls></video> |
+
+More examples in [examples/](examples/).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
@@ -47,6 +59,10 @@ npm install
 ```bash
 cd remotion
 npm install
+```
+
+```bash
+npm install -g hyperframes
 ```
 
 ## Configure
@@ -268,6 +284,12 @@ uv run python main.py produce-hyperframes --script outputs/hf_demo.txt --title "
 cd remotion
 npm run preview
 ```
+
+## Acknowledgments
+
+This project uses the following open-source projects:
+
+- [HyperFrames](https://github.com/heygen-com/hyperframes) — AI-powered animated video generation tool, open-sourced by HeyGen
 
 ## License
 

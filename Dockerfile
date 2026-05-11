@@ -62,6 +62,8 @@ COPY remotion/package*.json ./remotion/
 RUN cd remotion \
     && npm ci --cache /tmp/npm-cache \
     && rm -rf /tmp/npm-cache /root/.npm
+RUN npm install -g hyperframes \
+    && rm -rf /root/.npm
 
 COPY . .
 RUN mkdir -p outputs logs data
