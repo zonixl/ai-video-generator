@@ -28,9 +28,9 @@ npm install
 
 ## Local Configuration / 本地配置
 
-Copy the example files and fill in your own credentials.
+Copy the example files and fill in your own credentials. Runtime commands read `config/config.yaml`; `.env` is used when present.
 
-复制样例配置，然后填入你自己的密钥。
+复制样例配置，然后填入你自己的密钥。运行命令读取 `config/config.yaml`；`.env` 存在时会被读取。
 
 ```bash
 cp .env.example .env

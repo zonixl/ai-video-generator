@@ -49,10 +49,18 @@ npm install
 
 ## 配置
 
+`config/config.example.yaml` 和 `.env.example` 是模板文件。
+
+创建本地运行配置：
+
 ```bash
 cp .env.example .env
 cp config/config.example.yaml config/config.yaml
 ```
+
+程序运行时读取 `config/config.yaml`。Docker Compose 也会把本地 `./config/config.yaml` 挂载到后端容器。
+
+程序会在 `.env` 存在时读取它。也可以不使用 `.env`，直接在系统环境变量里配置同名变量。
 
 在 `.env` 中配置一个默认 OpenAI 兼容模型：
 

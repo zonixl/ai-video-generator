@@ -49,10 +49,18 @@ npm install
 
 ## Configure
 
+`config/config.example.yaml` and `.env.example` are templates.
+
+Create local runtime files:
+
 ```bash
 cp .env.example .env
 cp config/config.example.yaml config/config.yaml
 ```
+
+The app reads `config/config.yaml` at runtime. Docker Compose also mounts `./config/config.yaml` into the backend container.
+
+The app reads `.env` when it exists. You can also set the same variables through your system environment instead of using `.env`.
 
 Set one default OpenAI-compatible model in `.env`:
 
