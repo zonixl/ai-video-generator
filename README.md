@@ -21,13 +21,13 @@ Keywords: AI video generator, Remotion video generator, HyperFrames video, AI sh
 
 | Template | Preview |
 |----------|---------|
-| HyperFrames Tech HUD | <video src="examples/hyperframes.mp4" width="240" controls></video> |
-| Remotion Kinetic Typography | <video src="examples/remotion-灵动文字.mp4" width="480" controls></video> |
-| Remotion Full-Screen Background | <video src="examples/remotion-全屏背景.mp4" width="480" controls></video> |
-| Remotion Sketch Course | <video src="examples/remotion-手绘课堂.mp4" width="480" controls></video> |
-| Remotion Elegant Illustration | <video src="examples/remotion-雅致插画.mp4" width="480" controls></video> |
+| HyperFrames Tech HUD | [![HyperFrames](examples/thumbnails/hyperframes.jpg)](examples/hyperframes.mp4) |
+| Remotion Kinetic Typography | [![Kinetic Typography](examples/thumbnails/remotion-灵动文字.jpg)](examples/remotion-灵动文字.mp4) |
+| Remotion Full-Screen Background | [![Full-Screen Background](examples/thumbnails/remotion-全屏背景.jpg)](examples/remotion-全屏背景.mp4) |
+| Remotion Sketch Course | [![Sketch Course](examples/thumbnails/remotion-手绘课堂.jpg)](examples/remotion-手绘课堂.mp4) |
+| Remotion Elegant Illustration | [![Elegant Illustration](examples/thumbnails/remotion-雅致插画.jpg)](examples/remotion-雅致插画.mp4) |
 
-More examples in [examples/](examples/).
+Click a thumbnail to watch the video. More examples in [examples/](examples/).
 
 ## Documentation
 

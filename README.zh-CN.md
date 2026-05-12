@@ -21,13 +21,13 @@ AI Video Generator 是一个本地优先的 AI 视频生成工具，可以把选
 
 | 模板 | 预览 |
 |------|------|
-| HyperFrames 科技感 | <video src="examples/hyperframes.mp4" width="240" controls></video> |
-| Remotion 灵动文字 | <video src="examples/remotion-灵动文字.mp4" width="480" controls></video> |
-| Remotion 全屏背景 | <video src="examples/remotion-全屏背景.mp4" width="480" controls></video> |
-| Remotion 手绘课堂 | <video src="examples/remotion-手绘课堂.mp4" width="480" controls></video> |
-| Remotion 雅致插画 | <video src="examples/remotion-雅致插画.mp4" width="480" controls></video> |
+| HyperFrames 科技感 | [![HyperFrames](examples/thumbnails/hyperframes.jpg)](examples/hyperframes.mp4) |
+| Remotion 灵动文字 | [![灵动文字](examples/thumbnails/remotion-灵动文字.jpg)](examples/remotion-灵动文字.mp4) |
+| Remotion 全屏背景 | [![全屏背景](examples/thumbnails/remotion-全屏背景.jpg)](examples/remotion-全屏背景.mp4) |
+| Remotion 手绘课堂 | [![手绘课堂](examples/thumbnails/remotion-手绘课堂.jpg)](examples/remotion-手绘课堂.mp4) |
+| Remotion 雅致插画 | [![雅致插画](examples/thumbnails/remotion-雅致插画.jpg)](examples/remotion-雅致插画.mp4) |
 
-更多示例见 [examples/](examples/)。
+点击缩略图可观看视频。更多示例见 [examples/](examples/)。
 
 ## 文档
 
