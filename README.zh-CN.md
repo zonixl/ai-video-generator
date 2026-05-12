@@ -91,6 +91,8 @@ DEFAULT_LLM_MODEL=your_model_name
 
 如果要给不同任务配置不同模型，修改 `config/config.yaml` 里的 `models.instances`。
 
+图片生成默认使用 `doubao-seedream-4-5-251128`（火山引擎 Ark API），在 `.env` 中设置 `ARK_API_KEY` 即可启用。如需使用其他图片生成服务，修改 `config/config.yaml` 中的 `image_gen` 配置。
+
 ## 使用 Docker
 
 Docker 是最简单的启动方式。默认镜像使用 CPU，适合大多数用户。

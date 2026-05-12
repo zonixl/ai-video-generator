@@ -91,6 +91,8 @@ DEFAULT_LLM_MODEL=your_model_name
 
 For per-task model routing, edit `models.instances` in `config/config.yaml`.
 
+Image generation uses `doubao-seedream-4-5-251128` by default (Ark API). Set `ARK_API_KEY` in `.env` to enable it. To use a different image provider, edit `image_gen` in `config/config.yaml`.
+
 ## Use With Docker
 
 Docker is the easiest way to run the app. The default image is CPU-only and is suitable for most users.
